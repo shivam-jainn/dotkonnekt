@@ -29,7 +29,10 @@ app.include_router(api_router)
 
 @app.get("/health", tags=["Health"])
 async def health():
-    return {"status": "healthy"}
+    db_healthy = await db.health_check()
+    if not db_healthy:
+        return {"status": "degraded", "database": "unreachable"}
+    return {"status": "healthy", "database": "connected"}
 
 
 def main() -> None:

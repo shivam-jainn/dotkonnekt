@@ -1,9 +1,10 @@
-import json
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import text
 
 from src.database import db
+from src.database.models import JobModel
 
 
 pytestmark = pytest.mark.integration
@@ -12,20 +13,23 @@ pytestmark = pytest.mark.integration
 @pytest.fixture(autouse=True)
 async def clean_jobs():
     await db.connect()
-    async with db.pool.acquire() as conn:
-        await conn.execute("DELETE FROM jobs")
+    async with db.pool() as session:
+        await session.execute(text("DELETE FROM jobs"))
+        await session.commit()
     yield
-    async with db.pool.acquire() as conn:
-        await conn.execute("DELETE FROM jobs")
+    async with db.pool() as session:
+        await session.execute(text("DELETE FROM jobs"))
+        await session.commit()
     await db.close()
 
 
 class TestDatabaseIntegration:
-    async def test_schema_auto_created(self):
-        async with db.pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT table_name FROM information_schema.tables WHERE table_name = 'jobs'"
+    async def test_schema_exists(self):
+        async with db.pool() as session:
+            result = await session.execute(
+                text("SELECT table_name FROM information_schema.tables WHERE table_name = 'jobs'")
             )
+            rows = result.fetchall()
             assert len(rows) == 1
 
     async def test_insert_and_read_job(self):
@@ -36,59 +40,67 @@ class TestDatabaseIntegration:
         collection = "test-collection"
         metadata = {"source": "pytest"}
 
-        async with db.pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO jobs (id, status, files, collection, metadata)
-                VALUES ($1, $2, $3::jsonb, $4, $5::jsonb)
-                """,
-                job_id,
-                "queued",
-                json.dumps(files),
-                collection,
-                json.dumps(metadata),
-            )
+        async with db.pool() as session:
+            session.add(JobModel(
+                id=job_id,
+                status="queued",
+                files=files,
+                collection=collection,
+                metadata_=metadata,
+            ))
+            await session.commit()
 
-        async with db.pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT * FROM jobs WHERE id = $1", job_id)
+        async with db.pool() as session:
+            result = await session.execute(
+                text("SELECT * FROM jobs WHERE id = :id"), {"id": job_id}
+            )
+            row = result.fetchone()
 
         assert row is not None
-        assert row["id"] == job_id
-        assert row["status"] == "queued"
-        assert json.loads(row["files"]) == files
-        assert row["collection"] == collection
-        assert json.loads(row["metadata"]) == metadata
-        assert row["created_at"] is not None
-        assert row["updated_at"] is not None
+        assert row._mapping["id"] == job_id
+        assert row._mapping["status"] == "queued"
+        assert row._mapping["files"] == files
+        assert row._mapping["collection"] == collection
+        assert row._mapping["metadata"] == metadata
+        assert row._mapping["created_at"] is not None
+        assert row._mapping["updated_at"] is not None
 
     async def test_default_status_is_queued(self):
         job_id = str(uuid4())
 
-        async with db.pool.acquire() as conn:
-            await conn.execute(
-                "INSERT INTO jobs (id) VALUES ($1)", job_id
+        async with db.pool() as session:
+            session.add(JobModel(id=job_id))
+            await session.commit()
+
+        async with db.pool() as session:
+            result = await session.execute(
+                text("SELECT status FROM jobs WHERE id = :id"), {"id": job_id}
             )
+            row = result.fetchone()
 
-        async with db.pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT status FROM jobs WHERE id = $1", job_id)
-
-        assert row["status"] == "queued"
+        assert row._mapping["status"] == "queued"
 
     async def test_update_job_status(self):
         job_id = str(uuid4())
 
-        async with db.pool.acquire() as conn:
-            await conn.execute("INSERT INTO jobs (id) VALUES ($1)", job_id)
-            await conn.execute(
-                "UPDATE jobs SET status = $1, updated_at = NOW() WHERE id = $2",
-                "processing",
-                job_id,
+        async with db.pool() as session:
+            session.add(JobModel(id=job_id))
+            await session.commit()
+
+        async with db.pool() as session:
+            await session.execute(
+                text("UPDATE jobs SET status = :status, updated_at = NOW() WHERE id = :id"),
+                {"status": "processing", "id": job_id},
             )
+            await session.commit()
 
-        async with db.pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT status FROM jobs WHERE id = $1", job_id)
+        async with db.pool() as session:
+            result = await session.execute(
+                text("SELECT status FROM jobs WHERE id = :id"), {"id": job_id}
+            )
+            row = result.fetchone()
 
-        assert row["status"] == "processing"
+        assert row._mapping["status"] == "processing"
 
     async def test_multiple_files_jsonb(self):
         job_id = str(uuid4())
@@ -97,14 +109,14 @@ class TestDatabaseIntegration:
             {"filename": "b.txt", "content_type": "text/plain", "size": 2, "storage_path": f"{job_id}/b.txt"},
         ]
 
-        async with db.pool.acquire() as conn:
-            await conn.execute(
-                "INSERT INTO jobs (id, files) VALUES ($1, $2::jsonb)",
-                job_id,
-                json.dumps(files),
+        async with db.pool() as session:
+            session.add(JobModel(id=job_id, files=files))
+            await session.commit()
+
+        async with db.pool() as session:
+            result = await session.execute(
+                text("SELECT files FROM jobs WHERE id = :id"), {"id": job_id}
             )
+            row = result.fetchone()
 
-        async with db.pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT files FROM jobs WHERE id = $1", job_id)
-
-        assert len(json.loads(row["files"])) == 2
+        assert len(row._mapping["files"]) == 2

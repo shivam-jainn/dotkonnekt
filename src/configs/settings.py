@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     postgres_db: str = "dtx_database"
     postgres_user: str = "dtx_user"
     postgres_password: str = "dtx_password"
+    database_url: str | None = None
     pool_min_size: int = 2
     pool_max_size: int = 10
 

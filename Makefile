@@ -1,4 +1,4 @@
-.PHONY: install infra-up infra-down test test-unit test-integration test-upload-api test-all lint clean
+.PHONY: install infra-up infra-down test test-unit test-integration test-upload-api test-all lint clean migrate migrate-autogenerate migrate-check migrate-stamp
 
 dev:
 	uv run uvicorn src.server:app --reload
@@ -35,6 +35,18 @@ lint:
 format:
 	uv run ruff format src/ tests/
 	uv run ruff check --fix src/ tests/
+
+migrate:
+	PYTHONPATH=. uv run alembic upgrade head
+
+migrate-autogenerate:
+	PYTHONPATH=. uv run alembic revision --autogenerate -m "$(message)"
+
+migrate-check:
+	PYTHONPATH=. uv run alembic check
+
+migrate-stamp:
+	PYTHONPATH=. uv run alembic stamp $(revision)
 
 clean:
 	rm -rf .pytest_cache

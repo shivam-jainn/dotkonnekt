@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.router import api_router
 from src.database import db
@@ -13,17 +14,22 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.fixture(autouse=True)
-def mock_db_pool():
-    mock_pool = MagicMock()
-    mock_conn = AsyncMock()
-    mock_conn.execute = AsyncMock()
-    acquire_cm = MagicMock()
-    acquire_cm.__aenter__ = AsyncMock(return_value=mock_conn)
-    acquire_cm.__aexit__ = AsyncMock(return_value=None)
-    mock_pool.acquire = MagicMock(return_value=acquire_cm)
-    db._pool = mock_pool
-    yield mock_pool, mock_conn
-    db._pool = None
+def mock_db_session():
+    mock_session = MagicMock(spec=AsyncSession)
+    mock_session.add = MagicMock()
+    mock_session.commit = AsyncMock()
+    mock_session.execute = AsyncMock()
+
+    mock_cm = MagicMock()
+    mock_cm.__aenter__ = AsyncMock(return_value=mock_session)
+    mock_cm.__aexit__ = AsyncMock(return_value=None)
+
+    mock_factory = MagicMock()
+    mock_factory.return_value = mock_cm
+    db._session_factory = mock_factory
+    yield mock_session
+    db._session_factory = None
+    db._engine = None
 
 
 @pytest.fixture(autouse=True)
@@ -55,8 +61,7 @@ async def client(app):
 
 
 class TestUploadApi:
-    async def test_upload_single_file(self, client, mock_db_pool, mock_storage, mock_queue):
-        mock_pool, mock_conn = mock_db_pool
+    async def test_upload_single_file(self, client, mock_db_session, mock_storage, mock_queue):
         file_content = b"Hello, World!"
         response = await client.post(
             "/api/v1/documents",
@@ -74,7 +79,7 @@ class TestUploadApi:
 
         mock_queue.assert_awaited_once()
 
-    async def test_upload_multiple_files(self, client, mock_db_pool, mock_storage, mock_queue):
+    async def test_upload_multiple_files(self, client, mock_db_session, mock_storage, mock_queue):
         response = await client.post(
             "/api/v1/documents",
             files=[
@@ -93,8 +98,7 @@ class TestUploadApi:
 
         mock_queue.assert_awaited_once()
 
-    async def test_upload_with_collection(self, client, mock_db_pool, mock_storage, mock_queue):
-        _, mock_conn = mock_db_pool
+    async def test_upload_with_collection(self, client, mock_db_session, mock_storage, mock_queue):
         response = await client.post(
             "/api/v1/documents",
             files={"files": ("test.txt", b"data", "text/plain")},
@@ -105,11 +109,11 @@ class TestUploadApi:
         data = response.json()
         assert data["files_uploaded"] == 1
 
-        params = mock_conn.execute.call_args[0]
-        assert "my-collection" in str(params)
+        call_args = mock_db_session.add.call_args
+        job = call_args[0][0]
+        assert job.collection == "my-collection"
 
-    async def test_upload_with_metadata(self, client, mock_db_pool, mock_storage, mock_queue):
-        _, mock_conn = mock_db_pool
+    async def test_upload_with_metadata(self, client, mock_db_session, mock_storage, mock_queue):
         metadata = {"source": "test", "tags": ["api", "upload"]}
         response = await client.post(
             "/api/v1/documents",
@@ -119,11 +123,11 @@ class TestUploadApi:
 
         assert response.status_code == 201
 
-        params = mock_conn.execute.call_args[0]
-        inserted_metadata = json.loads(params[5])
-        assert inserted_metadata == metadata
+        call_args = mock_db_session.add.call_args
+        job = call_args[0][0]
+        assert job.metadata_ == metadata
 
-    async def test_upload_with_collection_and_metadata(self, client, mock_db_pool, mock_storage, mock_queue):
+    async def test_upload_with_collection_and_metadata(self, client, mock_db_session, mock_storage, mock_queue):
         metadata = {"source": "full-test"}
         response = await client.post(
             "/api/v1/documents",
@@ -154,23 +158,17 @@ class TestUploadApi:
 
         assert response.status_code == 422
 
-    async def test_job_inserted_with_correct_fields(self, client, mock_db_pool, mock_storage, mock_queue):
-        _, mock_conn = mock_db_pool
+    async def test_job_inserted_with_correct_fields(self, client, mock_db_session, mock_storage, mock_queue):
         await client.post(
             "/api/v1/documents",
             files={"files": ("test.txt", b"data", "text/plain")},
             data={"collection": "col", "metadata": json.dumps({"k": "v"})},
         )
 
-        assert mock_conn.execute.awaited
-        sql = mock_conn.execute.call_args[0][0]
-        assert "INSERT INTO jobs" in sql
+        mock_db_session.add.assert_called_once()
+        mock_db_session.commit.assert_awaited_once()
 
-        params = mock_conn.execute.call_args[0]
-        assert len(params) == 6
-        assert params[2] == "queued"
-
-    async def test_job_published_to_queue(self, client, mock_db_pool, mock_storage, mock_queue):
+    async def test_job_published_to_queue(self, client, mock_db_session, mock_storage, mock_queue):
         await client.post(
             "/api/v1/documents",
             files={"files": ("test.txt", b"data", "text/plain")},
@@ -180,7 +178,7 @@ class TestUploadApi:
         queue_name = mock_queue.call_args[0][0]
         assert queue_name == "ingestion"
 
-    async def test_upload_preserves_content_type(self, client, mock_db_pool, mock_storage, mock_queue):
+    async def test_upload_preserves_content_type(self, client, mock_db_session, mock_storage, mock_queue):
         await client.post(
             "/api/v1/documents",
             files={"files": ("test.json", b'{"key": "value"}', "application/json")},
@@ -189,7 +187,7 @@ class TestUploadApi:
         call_args = mock_storage.upload_bytes.call_args
         assert call_args[0][2] == "application/json"
 
-    async def test_upload_binary_file(self, client, mock_db_pool, mock_storage, mock_queue):
+    async def test_upload_binary_file(self, client, mock_db_session, mock_storage, mock_queue):
         binary_content = b"\x00\x01\x02\xff\xfe"
         response = await client.post(
             "/api/v1/documents",

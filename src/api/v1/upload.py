@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from src.configs import settings
 from src.database import db
+from src.database.models import JobModel
 from src.models.job import FileInfo, IngestionJob
 from src.queue import queue
 from src.storage import create_storage
@@ -62,18 +63,15 @@ async def upload_documents(
         metadata=parsed_metadata,
     )
 
-    async with db.pool.acquire() as conn:
-        await conn.execute(
-            """
-            INSERT INTO jobs (id, status, files, collection, metadata)
-            VALUES ($1, $2, $3::jsonb, $4, $5::jsonb)
-            """,
-            job.job_id,
-            job.status.value,
-            json.dumps([f.model_dump() for f in job.files]),
-            job.collection,
-            json.dumps(job.metadata),
-        )
+    async with db.pool() as session:
+        session.add(JobModel(
+            id=job.job_id,
+            status=job.status.value,
+            files=[f.model_dump() for f in job.files],
+            collection=job.collection,
+            metadata_=job.metadata,
+        ))
+        await session.commit()
 
     await queue.publish(
         settings.rabbitmq_queue,

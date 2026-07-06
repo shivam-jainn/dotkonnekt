@@ -1,6 +1,7 @@
-from src.database.db import DatabasePool, db
+from src.database.db import DatabaseManager, db, get_session
 
 __all__ = [
-    "DatabasePool",
+    "DatabaseManager",
     "db",
+    "get_session",
 ]
