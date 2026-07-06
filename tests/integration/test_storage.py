@@ -69,7 +69,9 @@ class TestMinioStorageIntegration:
         for obj_name, content in files:
             storage.upload_bytes(content, obj_name, "text/plain")
 
-        objects = list(storage.client.list_objects(storage.bucket, prefix=prefix, recursive=True))
+        objects = list(
+            storage.client.list_objects(storage.bucket, prefix=prefix, recursive=True)
+        )
         object_names = {o.object_name for o in objects}
 
         for obj_name, _ in files:

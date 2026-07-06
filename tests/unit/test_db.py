@@ -80,7 +80,9 @@ class TestDatabaseManager:
 
     @patch("src.database.db.create_engine")
     @patch("src.database.db.async_sessionmaker")
-    async def test_pool_returns_after_connect(self, mock_sessionmaker, mock_create_engine):
+    async def test_pool_returns_after_connect(
+        self, mock_sessionmaker, mock_create_engine
+    ):
         mock_engine = MagicMock()
         mock_conn = AsyncMock()
         mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -96,7 +98,9 @@ class TestDatabaseManager:
 
     @patch("src.database.db.create_engine")
     @patch("src.database.db.async_sessionmaker")
-    async def test_health_check_returns_true(self, mock_sessionmaker, mock_create_engine):
+    async def test_health_check_returns_true(
+        self, mock_sessionmaker, mock_create_engine
+    ):
         mock_engine = MagicMock()
         mock_conn = AsyncMock()
         mock_engine.connect.return_value.__aenter__ = AsyncMock(return_value=mock_conn)
@@ -147,7 +151,9 @@ class TestDatabaseManager:
         mock_create_engine.return_value = mock_engine
 
         db = DatabaseManager()
-        with pytest.raises(ConnectionError, match="Could not connect to database after 2 attempts"):
+        with pytest.raises(
+            ConnectionError, match="Could not connect to database after 2 attempts"
+        ):
             await db.connect(retry_attempts=2, retry_delay=0.01)
 
         assert mock_create_engine.call_count == 2

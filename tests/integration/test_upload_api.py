@@ -42,7 +42,9 @@ def mock_storage():
 
 @pytest.fixture(autouse=True)
 def mock_queue():
-    with patch("src.api.v1.upload.queue.publish", new_callable=AsyncMock) as mock_publish:
+    with patch(
+        "src.api.v1.upload.queue.publish", new_callable=AsyncMock
+    ) as mock_publish:
         yield mock_publish
 
 
@@ -61,7 +63,9 @@ async def client(app):
 
 
 class TestUploadApi:
-    async def test_upload_single_file(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_upload_single_file(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         file_content = b"Hello, World!"
         response = await client.post(
             "/api/v1/documents",
@@ -79,7 +83,9 @@ class TestUploadApi:
 
         mock_queue.assert_awaited_once()
 
-    async def test_upload_multiple_files(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_upload_multiple_files(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         response = await client.post(
             "/api/v1/documents",
             files=[
@@ -98,7 +104,9 @@ class TestUploadApi:
 
         mock_queue.assert_awaited_once()
 
-    async def test_upload_with_collection(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_upload_with_collection(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         response = await client.post(
             "/api/v1/documents",
             files={"files": ("test.txt", b"data", "text/plain")},
@@ -113,7 +121,9 @@ class TestUploadApi:
         job = call_args[0][0]
         assert job.collection == "my-collection"
 
-    async def test_upload_with_metadata(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_upload_with_metadata(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         metadata = {"source": "test", "tags": ["api", "upload"]}
         response = await client.post(
             "/api/v1/documents",
@@ -127,7 +137,9 @@ class TestUploadApi:
         job = call_args[0][0]
         assert job.metadata_ == metadata
 
-    async def test_upload_with_collection_and_metadata(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_upload_with_collection_and_metadata(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         metadata = {"source": "full-test"}
         response = await client.post(
             "/api/v1/documents",
@@ -158,7 +170,9 @@ class TestUploadApi:
 
         assert response.status_code == 422
 
-    async def test_job_inserted_with_correct_fields(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_job_inserted_with_correct_fields(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         await client.post(
             "/api/v1/documents",
             files={"files": ("test.txt", b"data", "text/plain")},
@@ -168,7 +182,9 @@ class TestUploadApi:
         mock_db_session.add.assert_called_once()
         mock_db_session.commit.assert_awaited_once()
 
-    async def test_job_published_to_queue(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_job_published_to_queue(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         await client.post(
             "/api/v1/documents",
             files={"files": ("test.txt", b"data", "text/plain")},
@@ -178,7 +194,9 @@ class TestUploadApi:
         queue_name = mock_queue.call_args[0][0]
         assert queue_name == "ingestion"
 
-    async def test_upload_preserves_content_type(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_upload_preserves_content_type(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         await client.post(
             "/api/v1/documents",
             files={"files": ("test.json", b'{"key": "value"}', "application/json")},
@@ -187,7 +205,9 @@ class TestUploadApi:
         call_args = mock_storage.upload_bytes.call_args
         assert call_args[0][2] == "application/json"
 
-    async def test_upload_binary_file(self, client, mock_db_session, mock_storage, mock_queue):
+    async def test_upload_binary_file(
+        self, client, mock_db_session, mock_storage, mock_queue
+    ):
         binary_content = b"\x00\x01\x02\xff\xfe"
         response = await client.post(
             "/api/v1/documents",

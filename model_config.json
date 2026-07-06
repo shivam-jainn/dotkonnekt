@@ -1,0 +1,19 @@
+{
+  "providers": {
+    "lmstudio": {
+      "api_key": null,
+      "api_base": "http://localhost:1234/v1",
+      "extra_headers": {},
+      "extra_params": {}
+    }
+  },
+  "selected": {
+    "embedding": {
+      "task": "embedding",
+      "provider_id": "lmstudio",
+      "model_id": "nomic-embed-text",
+      "litellm_model": "openai/nomic-embed-text",
+      "api_base": "http://localhost:1234/v1"
+    }
+  }
+}
