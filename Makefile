@@ -1,5 +1,8 @@
 .PHONY: install infra-up infra-down test test-unit test-integration test-upload-api test-all lint clean
 
+dev:
+	uv run uvicorn src.server:app --reload
+
 install:
 	uv sync --group dev
 
