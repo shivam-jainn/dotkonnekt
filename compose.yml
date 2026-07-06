@@ -1,0 +1,24 @@
+services:
+  vectordb:
+    image: qdrant:latest
+    container_name: vectordb-dtx
+    ports:
+      - "6333:6333"
+    volumes:
+      - vectordb_data:/qdrant/storage
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres-dtx
+    environment:
+      POSTGRES_USER: dtx_user
+      POSTGRES_PASSWORD: dtx_password
+      POSTGRES_DB: dtx_database
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  vectordb_data:
+  postgres_data:
