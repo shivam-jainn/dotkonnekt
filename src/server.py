@@ -13,7 +13,9 @@ from src.queue import queue
 async def lifespan(app: FastAPI):
     await db.connect()
     await queue.connect()
+
     yield
+
     await queue.close()
     await db.close()
 

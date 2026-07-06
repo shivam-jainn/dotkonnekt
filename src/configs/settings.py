@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     storage_bucket_name: str = "dotkonnekt"
     storage_use_ssl: bool = False
 
+    # Embedding
+    embedding_model: str = "text-embedding-3-small"
+    embedding_batch_size: int = 100
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

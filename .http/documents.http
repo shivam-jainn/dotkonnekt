@@ -1,87 +1,72 @@
 ### Variables
 @base_url = http://localhost:8000
 
-### Health Check
-GET {{base_url}}/health
-Accept: application/json
-
-### Upload Single Text File
+### Upload Single PDF File
 POST {{base_url}}/api/v1/documents
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="files"; filename="hello.txt"
-Content-Type: text/plain
+Content-Disposition: form-data; name="files"; filename="sbi-insu-pdf.pdf"
+Content-Type: application/pdf
 
-Hello, World!
+< ../sample-data/sbi-insu-pdf.pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Upload Single JSON File
+### Upload Multiple Files (PDF + Text)
 POST {{base_url}}/api/v1/documents
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="files"; filename="data.json"
-Content-Type: application/json
+Content-Disposition: form-data; name="files"; filename="sbi-insu-pdf.pdf"
+Content-Type: application/pdf
 
-{"key": "value", "nested": {"a": 1}}
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
-
-### Upload Multiple Files
-POST {{base_url}}/api/v1/documents
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="files"; filename="doc1.txt"
-Content-Type: text/plain
-
-First document content
-------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="files"; filename="doc2.txt"
-Content-Type: text/plain
-
-Second document content
-------WebKitFormBoundary7MA4YWxkTrZu0gW--
-
-### Upload with Collection
-POST {{base_url}}/api/v1/documents
-Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
-
+< ../sample-data/sbi-insu-pdf.pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="files"; filename="notes.txt"
 Content-Type: text/plain
 
-Collection-bound content
+Sample text note
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload PDF with Collection
+POST {{base_url}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="sbi-insu-pdf.pdf"
+Content-Type: application/pdf
+
+< ../sample-data/sbi-insu-pdf.pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="collection"
 
-my-research-papers
+insurance-docs
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Upload with Metadata
+### Upload PDF with Metadata
 POST {{base_url}}/api/v1/documents
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="files"; filename="report.pdf"
+Content-Disposition: form-data; name="files"; filename="sbi-insu-pdf.pdf"
 Content-Type: application/pdf
 
-(dummy PDF content)
+< ../sample-data/sbi-insu-pdf.pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="metadata"
 
-{"author": "John Doe", "department": "engineering", "priority": "high"}
+{"author": "SBI", "department": "insurance", "priority": "high"}
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
 
-### Upload with Collection and Metadata
+### Upload PDF with Collection and Metadata
 POST {{base_url}}/api/v1/documents
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
 
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
-Content-Disposition: form-data; name="files"; filename="full-example.txt"
-Content-Type: text/plain
+Content-Disposition: form-data; name="files"; filename="sbi-insu-pdf.pdf"
+Content-Type: application/pdf
 
-Full example with both collection and metadata
+< ../sample-data/sbi-insu-pdf.pdf
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="collection"
 
@@ -89,5 +74,5 @@ knowledge-base
 ------WebKitFormBoundary7MA4YWxkTrZu0gW
 Content-Disposition: form-data; name="metadata"
 
-{"source": "manual", "version": 1}
+{"source": "sbi", "version": 1}
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--

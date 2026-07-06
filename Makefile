@@ -1,7 +1,10 @@
-.PHONY: install infra-up infra-down test test-unit test-integration test-upload-api test-all lint clean migrate migrate-autogenerate migrate-check migrate-stamp
+.PHONY: install infra-up infra-down dev worker test test-unit test-integration test-upload-api test-all lint clean migrate migrate-autogenerate migrate-check migrate-stamp
 
 dev:
 	uv run uvicorn src.server:app --reload
+
+worker:
+	uv run python -m src.worker.run
 
 install:
 	uv sync --group dev

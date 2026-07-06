@@ -1,0 +1,6 @@
+### Variables
+@base_url = http://localhost:8000
+
+### Health Check
+GET {{base_url}}/health
+Accept: application/json
