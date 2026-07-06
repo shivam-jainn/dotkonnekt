@@ -32,7 +32,20 @@ services:
     volumes:
       - minio_data:/data
 
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    container_name: rabbitmq-dtx
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
 volumes:
   vectordb_data:
   postgres_data:
   minio_data:
+  rabbitmq_data:
