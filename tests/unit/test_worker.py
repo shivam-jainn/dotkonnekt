@@ -139,7 +139,8 @@ class TestWorker:
             "files": [],
         }
 
-        await worker._process_job(json.dumps(job_data).encode())
+        with pytest.raises(Exception):
+            await worker._process_job(json.dumps(job_data).encode())
 
         assert mock_job.status == JobStatus.failed.value
 

@@ -4,17 +4,14 @@ from collections.abc import Callable, Coroutine
 
 class Queue(ABC):
     @abstractmethod
-    async def publish(self, queue_name: str, message: bytes) -> None:
-        ...
+    async def publish(self, queue_name: str, message: bytes) -> None: ...
 
     @abstractmethod
     async def consume(
         self,
         queue_name: str,
         callback: Callable[[bytes], Coroutine],
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abstractmethod
-    async def close(self) -> None:
-        ...
+    async def close(self) -> None: ...
