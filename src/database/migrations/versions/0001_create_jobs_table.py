@@ -23,11 +23,25 @@ def upgrade() -> None:
         "jobs",
         sa.Column("id", sa.Text(), nullable=False),
         sa.Column("status", sa.Text(), nullable=False, server_default="queued"),
-        sa.Column("files", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
+        sa.Column(
+            "files", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")
+        ),
         sa.Column("collection", sa.Text(), nullable=True),
-        sa.Column("metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "metadata", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
 
