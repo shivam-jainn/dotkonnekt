@@ -1,0 +1,93 @@
+### Variables
+@base_url = http://localhost:8000
+
+### Health Check
+GET {{base_url}}/health
+Accept: application/json
+
+### Upload Single Text File
+POST {{base_url}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="hello.txt"
+Content-Type: text/plain
+
+Hello, World!
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload Single JSON File
+POST {{base_url}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="data.json"
+Content-Type: application/json
+
+{"key": "value", "nested": {"a": 1}}
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload Multiple Files
+POST {{base_url}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="doc1.txt"
+Content-Type: text/plain
+
+First document content
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="doc2.txt"
+Content-Type: text/plain
+
+Second document content
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload with Collection
+POST {{base_url}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="notes.txt"
+Content-Type: text/plain
+
+Collection-bound content
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="collection"
+
+my-research-papers
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload with Metadata
+POST {{base_url}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="report.pdf"
+Content-Type: application/pdf
+
+(dummy PDF content)
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="metadata"
+
+{"author": "John Doe", "department": "engineering", "priority": "high"}
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload with Collection and Metadata
+POST {{base_url}}/api/v1/documents
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="files"; filename="full-example.txt"
+Content-Type: text/plain
+
+Full example with both collection and metadata
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="collection"
+
+knowledge-base
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="metadata"
+
+{"source": "manual", "version": 1}
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
