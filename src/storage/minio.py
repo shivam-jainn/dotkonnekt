@@ -10,17 +10,17 @@ from src.storage.base import Storage
 class MinioStorage(Storage):
     def __init__(self) -> None:
         endpoint = (
-            settings.storage.endpoint_url
+            settings.storage_endpoint_url
             .replace("http://", "")
             .replace("https://", "")
         )
         self.client = Minio(
             endpoint=endpoint,
-            access_key=settings.storage.access_key_id,
-            secret_key=settings.storage.secret_access_key,
-            secure=settings.storage.use_ssl,
+            access_key=settings.storage_access_key_id,
+            secret_key=settings.storage_secret_access_key,
+            secure=settings.storage_use_ssl,
         )
-        self.bucket = settings.storage.bucket_name
+        self.bucket = settings.storage_bucket_name
         self._ensure_bucket()
 
     def _ensure_bucket(self) -> None:

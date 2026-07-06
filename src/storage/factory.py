@@ -13,10 +13,10 @@ _STORAGE_PROVIDERS: dict[str, Type[Storage]] = {
 
 def create_storage() -> Storage:
     try:
-        storage_cls = _STORAGE_PROVIDERS[settings.storage.provider]
+        storage_cls = _STORAGE_PROVIDERS[settings.storage_provider]
     except KeyError as e:
         raise ValueError(
-            f"Unknown storage provider '{settings.storage.provider}'. "
+            f"Unknown storage provider '{settings.storage_provider}'. "
             f"Available: {', '.join(_STORAGE_PROVIDERS)}"
         ) from e
 

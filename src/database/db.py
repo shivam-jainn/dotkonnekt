@@ -23,13 +23,13 @@ class DatabasePool:
     async def connect(self) -> asyncpg.Pool:
         if self._pool is None:
             self._pool = await asyncpg.create_pool(
-                host=settings.db.postgres_host,
-                port=settings.db.postgres_port,
-                database=settings.db.postgres_database,
-                user=settings.db.postgres_user,
-                password=settings.db.postgres_password,
-                min_size=settings.db.pool_min_size,
-                max_size=settings.db.pool_max_size,
+                host=settings.postgres_host,
+                port=settings.postgres_port,
+                database=settings.postgres_db,
+                user=settings.postgres_user,
+                password=settings.postgres_password,
+                min_size=settings.pool_min_size,
+                max_size=settings.pool_max_size,
             )
             await self._init_schema()
         return self._pool

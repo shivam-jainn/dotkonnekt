@@ -13,15 +13,15 @@ class RabbitMQQueue(Queue):
 
     async def connect(self) -> None:
         self._connection = await aio_pika.connect_robust(
-            host=settings.db.rabbitmq_host,
-            port=settings.db.rabbitmq_port,
-            login=settings.db.rabbitmq_user,
-            password=settings.db.rabbitmq_password,
-            virtualhost=settings.db.rabbitmq_vhost,
+            host=settings.rabbitmq_host,
+            port=settings.rabbitmq_port,
+            login=settings.rabbitmq_user,
+            password=settings.rabbitmq_password,
+            virtualhost=settings.rabbitmq_vhost,
         )
         self._channel = await self._connection.channel()
         await self._channel.declare_queue(
-            settings.db.rabbitmq_queue,
+            settings.rabbitmq_queue,
             durable=True,
         )
 

@@ -10,19 +10,19 @@ from src.storage.base import Storage
 class S3Storage(Storage):
     def __init__(self) -> None:
         session = boto3.Session(
-            aws_access_key_id=settings.storage.access_key_id,
-            aws_secret_access_key=settings.storage.secret_access_key,
+            aws_access_key_id=settings.storage_access_key_id,
+            aws_secret_access_key=settings.storage_secret_access_key,
         )
         self.client = session.client(
             "s3",
-            endpoint_url=settings.storage.endpoint_url,
-            region_name=settings.storage.region,
+            endpoint_url=settings.storage_endpoint_url,
+            region_name=settings.storage_region,
             config=Config(
                 s3={"addressing_style": "path"},
                 signature_version="s3v4",
             ),
         )
-        self.bucket = settings.storage.bucket_name
+        self.bucket = settings.storage_bucket_name
         self._ensure_bucket()
 
     def _ensure_bucket(self) -> None:

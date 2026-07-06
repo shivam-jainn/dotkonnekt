@@ -19,8 +19,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title=settings.app.app_name,
-    version=settings.app.app_version,
+    title=settings.app_name,
+    version=settings.app_version,
     lifespan=lifespan,
 )
 
@@ -35,8 +35,8 @@ async def health():
 def main() -> None:
     uvicorn.run(
         app,
-        host=settings.app.host,
-        port=settings.app.port,
+        host=settings.host,
+        port=settings.port,
         reload=True,
     )
 

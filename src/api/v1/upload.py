@@ -76,7 +76,7 @@ async def upload_documents(
         )
 
     await queue.publish(
-        settings.db.rabbitmq_queue,
+        settings.rabbitmq_queue,
         job.model_dump_json().encode(),
     )
 
