@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     qdrant_host: str = "localhost"
     qdrant_port: int = 6333
     qdrant_api_key: str | None = None
+    qdrant_collection: str = "documents"
 
     # RabbitMQ
     rabbitmq_host: str = "localhost"
@@ -31,6 +32,10 @@ class Settings(BaseSettings):
     rabbitmq_password: str = "guest"
     rabbitmq_vhost: str = "/"
     rabbitmq_queue: str = "ingestion"
+    storage_queue: str = "storage"
+
+    # Storage (batched upsert)
+    storage_batch_size: int = 100
 
     # Storage
     storage_provider: str = "minio"
