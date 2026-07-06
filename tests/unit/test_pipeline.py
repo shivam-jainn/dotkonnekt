@@ -38,7 +38,7 @@ class TestPipeline:
 
     @patch("src.core.pipeline.create_storage")
     async def test_run_success(self, mock_create_storage):
-        mock_storage = MagicMock()
+        mock_storage = AsyncMock()
         mock_storage.download_bytes.return_value = b"pdf-data"
         mock_create_storage.return_value = mock_storage
 
@@ -79,7 +79,7 @@ class TestPipeline:
 
     @patch("src.core.pipeline.create_storage")
     async def test_run_handles_error_per_file(self, mock_create_storage):
-        mock_storage = MagicMock()
+        mock_storage = AsyncMock()
         mock_storage.download_bytes.side_effect = Exception("download failed")
         mock_create_storage.return_value = mock_storage
 
@@ -101,7 +101,7 @@ class TestPipeline:
 
     @patch("src.core.pipeline.create_storage")
     async def test_run_multiple_files(self, mock_create_storage):
-        mock_storage = MagicMock()
+        mock_storage = AsyncMock()
         mock_storage.download_bytes.return_value = b"data"
         mock_create_storage.return_value = mock_storage
 
@@ -144,14 +144,14 @@ class TestPipeline:
     async def test_run_continues_after_file_error(self, mock_create_storage):
         call_count = 0
 
-        def download_side_effect(path):
+        async def download_side_effect(path):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 raise Exception("first file failed")
             return b"data"
 
-        mock_storage = MagicMock()
+        mock_storage = AsyncMock()
         mock_storage.download_bytes.side_effect = download_side_effect
         mock_create_storage.return_value = mock_storage
 

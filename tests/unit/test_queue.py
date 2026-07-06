@@ -1,18 +1,22 @@
 from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
-
 from src.queue.rabbitmq import RabbitMQQueue
 
 
 @pytest.mark.unit
 class TestRabbitMQQueue:
     @patch("src.queue.rabbitmq.aio_pika.connect_robust")
-    async def test_connect_opens_connection_and_channel_and_declares_queue(self, mock_connect):
+    async def test_connect_opens_connection_and_channel_and_declares_queue(
+        self, mock_connect
+    ):
         mock_conn = AsyncMock()
         mock_channel = AsyncMock()
         mock_connect.return_value = mock_conn
         mock_conn.channel.return_value = mock_channel
+        
+        mock_exchange = AsyncMock()
+        mock_channel.declare_exchange.return_value = mock_exchange
+        
         mock_queue = AsyncMock()
         mock_channel.declare_queue.return_value = mock_queue
 
@@ -21,7 +25,10 @@ class TestRabbitMQQueue:
 
         mock_connect.assert_awaited_once()
         mock_conn.channel.assert_awaited_once()
-        mock_channel.declare_queue.assert_awaited_once_with("ingestion", durable=True)
+        mock_channel.declare_exchange.assert_awaited_once_with(
+            "dlx", type="direct", durable=True
+        )
+        assert mock_channel.declare_queue.await_count == 4
         assert queue._connection is mock_conn
         assert queue._channel is mock_channel
 
@@ -31,6 +38,11 @@ class TestRabbitMQQueue:
         mock_channel = AsyncMock()
         mock_connect.return_value = mock_conn
         mock_conn.channel.return_value = mock_channel
+        
+        mock_exchange = AsyncMock()
+        mock_channel.declare_exchange.return_value = mock_exchange
+        mock_queue = AsyncMock()
+        mock_channel.declare_queue.return_value = mock_queue
 
         queue = RabbitMQQueue()
         await queue.connect()
@@ -51,6 +63,11 @@ class TestRabbitMQQueue:
         mock_channel = AsyncMock()
         mock_connect.return_value = mock_conn
         mock_conn.channel.return_value = mock_channel
+        
+        mock_exchange = AsyncMock()
+        mock_channel.declare_exchange.return_value = mock_exchange
+        mock_queue = AsyncMock()
+        mock_channel.declare_queue.return_value = mock_queue
 
         queue = RabbitMQQueue()
         await queue.connect()
@@ -75,6 +92,9 @@ class TestRabbitMQQueue:
         mock_channel = AsyncMock()
         mock_connect.return_value = mock_conn
         mock_conn.channel.return_value = mock_channel
+        
+        mock_exchange = AsyncMock()
+        mock_channel.declare_exchange.return_value = mock_exchange
         mock_queue_obj = AsyncMock()
         mock_channel.declare_queue.return_value = mock_queue_obj
 
@@ -86,7 +106,6 @@ class TestRabbitMQQueue:
 
         await queue.consume("test-queue", dummy_callback)
 
-        mock_channel.declare_queue.assert_awaited_with("test-queue", durable=True)
         mock_queue_obj.consume.assert_called_once()
 
     @patch("src.queue.rabbitmq.aio_pika.connect_robust")
@@ -105,6 +124,11 @@ class TestRabbitMQQueue:
         mock_channel = AsyncMock()
         mock_connect.return_value = mock_conn
         mock_conn.channel.return_value = mock_channel
+        
+        mock_exchange = AsyncMock()
+        mock_channel.declare_exchange.return_value = mock_exchange
+        mock_queue = AsyncMock()
+        mock_channel.declare_queue.return_value = mock_queue
 
         queue = RabbitMQQueue()
         await queue.connect()

@@ -27,7 +27,9 @@ class TestDatabaseIntegration:
     async def test_schema_exists(self):
         async with db.pool() as session:
             result = await session.execute(
-                text("SELECT table_name FROM information_schema.tables WHERE table_name = 'jobs'")
+                text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_name = 'jobs'"
+                )
             )
             rows = result.fetchall()
             assert len(rows) == 1
@@ -35,19 +37,26 @@ class TestDatabaseIntegration:
     async def test_insert_and_read_job(self):
         job_id = str(uuid4())
         files = [
-            {"filename": "test.txt", "content_type": "text/plain", "size": 12, "storage_path": f"{job_id}/test.txt"}
+            {
+                "filename": "test.txt",
+                "content_type": "text/plain",
+                "size": 12,
+                "storage_path": f"{job_id}/test.txt",
+            }
         ]
         collection = "test-collection"
         metadata = {"source": "pytest"}
 
         async with db.pool() as session:
-            session.add(JobModel(
-                id=job_id,
-                status="queued",
-                files=files,
-                collection=collection,
-                metadata_=metadata,
-            ))
+            session.add(
+                JobModel(
+                    id=job_id,
+                    status="queued",
+                    files=files,
+                    collection=collection,
+                    metadata_=metadata,
+                )
+            )
             await session.commit()
 
         async with db.pool() as session:
@@ -89,7 +98,9 @@ class TestDatabaseIntegration:
 
         async with db.pool() as session:
             await session.execute(
-                text("UPDATE jobs SET status = :status, updated_at = NOW() WHERE id = :id"),
+                text(
+                    "UPDATE jobs SET status = :status, updated_at = NOW() WHERE id = :id"
+                ),
                 {"status": "processing", "id": job_id},
             )
             await session.commit()
@@ -105,8 +116,18 @@ class TestDatabaseIntegration:
     async def test_multiple_files_jsonb(self):
         job_id = str(uuid4())
         files = [
-            {"filename": "a.txt", "content_type": "text/plain", "size": 1, "storage_path": f"{job_id}/a.txt"},
-            {"filename": "b.txt", "content_type": "text/plain", "size": 2, "storage_path": f"{job_id}/b.txt"},
+            {
+                "filename": "a.txt",
+                "content_type": "text/plain",
+                "size": 1,
+                "storage_path": f"{job_id}/a.txt",
+            },
+            {
+                "filename": "b.txt",
+                "content_type": "text/plain",
+                "size": 2,
+                "storage_path": f"{job_id}/b.txt",
+            },
         ]
 
         async with db.pool() as session:
