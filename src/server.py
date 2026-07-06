@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 import uvicorn
 
-from src.configs.app import settings
+from src.configs import settings
 
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
+    title=settings.app.app_name,
+    version=settings.app.app_version,
 )
 
 
@@ -17,8 +17,8 @@ async def health():
 def main() -> None:
     uvicorn.run(
         app,
-        host=settings.HOST,
-        port=settings.PORT,
+        host=settings.app.host,
+        port=settings.app.port,
         reload=True,
     )
 

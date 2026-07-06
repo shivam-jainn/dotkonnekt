@@ -1,18 +1,14 @@
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class AppSettings(BaseSettings):
-    APP_NAME: str = "dotkonnekt"
-    APP_VERSION: str = Field(default="0.1.0")
+    app_name: str = "dotkonnekt"
+    app_version: str = "0.1.0"
 
-    HOST: str = Field(default="0.0.0.0")
-    PORT: int = Field(default=8000)
+    host: str = "0.0.0.0"
+    port: int = 8000
 
     model_config = SettingsConfigDict(
         env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
+        env_prefix="APP_",
         extra="ignore",
     )
-
-settings = AppSettings()
