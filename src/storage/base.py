@@ -1,36 +1,33 @@
 from abc import ABC, abstractmethod
-from typing import BinaryIO
+from typing import Any
 
 
 class Storage(ABC):
     @abstractmethod
-    def upload_bytes(
+    async def upload_bytes(
         self,
         data: bytes,
         object_name: str,
         content_type: str,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @abstractmethod
-    def upload_stream(
+    async def upload_stream(
         self,
-        stream: BinaryIO,
+        stream: Any,
         object_name: str,
         content_type: str,
-    ) -> None:
-        ...
+    ) -> int: ...
 
     @abstractmethod
-    def download_bytes(
+    async def download_bytes(
         self,
         object_name: str,
-    ) -> bytes:
-        ...
+    ) -> bytes: ...
 
     @abstractmethod
-    def delete(
+    async def delete(
         self,
         object_name: str,
-    ) -> None:
-        ...
+    ) -> None: ...
+
