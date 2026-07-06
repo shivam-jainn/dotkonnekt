@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from dataclasses import dataclass, field
 
 from src.core.chunkers.base import Chunk
@@ -53,35 +54,41 @@ class Pipeline:
     async def _embed(self, chunks: list[Chunk]) -> list[EmbeddedChunk]:
         return await self.embedder.embed_chunks(chunks)
 
+    async def _process_file(self, file_info: dict) -> tuple[list[EmbeddedChunk], int, str | None]:
+        filename = file_info["filename"]
+        storage_path = file_info["storage_path"]
+        try:
+            logger.info("Downloading %s from storage", filename)
+            data = await self.storage.download_bytes(storage_path)
+
+            logger.info("Parsing %s", filename)
+            document = await asyncio.to_thread(self._parse, data, filename)
+
+            logger.info("Chunking %s", filename)
+            chunks = await asyncio.to_thread(self._chunk, document)
+
+            logger.info("Embedding %d chunks from %s", len(chunks), filename)
+            embedded = await self._embed(chunks)
+
+            logger.info("Processed %s: %d chunks embedded", filename, len(embedded))
+            return embedded, len(chunks), None
+        except Exception as e:
+            error_msg = f"Error processing {filename}: {e}"
+            logger.exception(error_msg)
+            return [], 0, error_msg
+
     async def run(self, job_id: str, files: list[dict]) -> PipelineResult:
         result = PipelineResult(job_id=job_id)
 
-        for file_info in files:
-            try:
-                filename = file_info["filename"]
-                storage_path = file_info["storage_path"]
+        # Process all files concurrently
+        tasks = [self._process_file(file_info) for file_info in files]
+        res_list = await asyncio.gather(*tasks)
 
-                logger.info("Downloading %s from storage", filename)
-                data = self.storage.download_bytes(storage_path)
-
-                logger.info("Parsing %s", filename)
-                document = self._parse(data, filename)
-
-                logger.info("Chunking %s", filename)
-                chunks = self._chunk(document)
-                result.total_chunks += len(chunks)
-
-                logger.info("Embedding %d chunks from %s", len(chunks), filename)
-                embedded = await self._embed(chunks)
-                result.embedded_chunks.extend(embedded)
-
-                logger.info("Processed %s: %d chunks embedded", filename, len(embedded))
-
-            except Exception as e:
-                error_msg = (
-                    f"Error processing {file_info.get('filename', 'unknown')}: {e}"
-                )
-                logger.exception(error_msg)
+        for embedded, total_chunks, error_msg in res_list:
+            if error_msg:
                 result.errors.append(error_msg)
+            result.total_chunks += total_chunks
+            result.embedded_chunks.extend(embedded)
 
         return result
+

@@ -50,16 +50,24 @@ class Embedder:
                 "Use PUT /api/v1/models/config to select an embedding model."
             )
 
-        all_embedded: list[EmbeddedChunk] = []
+        import asyncio
 
-        for i in range(0, len(chunks), self.batch_size):
-            batch = chunks[i : i + self.batch_size]
+        batches = [
+            chunks[i : i + self.batch_size]
+            for i in range(0, len(chunks), self.batch_size)
+        ]
+
+        async def _embed_batch(batch: list[Chunk]) -> list[dict]:
             texts = [c.content for c in batch]
-
             response = await litellm.aembedding(**kwargs, input=texts)
+            return response.data
 
-            embeddings = response.data
+        # Embed all batches concurrently
+        tasks = [_embed_batch(batch) for batch in batches]
+        results = await asyncio.gather(*tasks)
 
+        all_embedded: list[EmbeddedChunk] = []
+        for batch, embeddings in zip(batches, results):
             for chunk, embedding_data in zip(batch, embeddings):
                 all_embedded.append(
                     EmbeddedChunk(
@@ -71,6 +79,7 @@ class Embedder:
                 )
 
         return all_embedded
+
 
     async def embed_query(self, text: str) -> list[float]:
         kwargs = self._get_litellm_kwargs()
