@@ -1,12 +1,30 @@
-from fastapi import FastAPI
-import uvicorn
+from contextlib import asynccontextmanager
 
+import uvicorn
+from fastapi import FastAPI
+
+from src.api.router import api_router
 from src.configs import settings
+from src.database import db
+from src.queue import queue
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await db.connect()
+    await queue.connect()
+    yield
+    await queue.close()
+    await db.close()
+
 
 app = FastAPI(
     title=settings.app.app_name,
     version=settings.app.app_version,
+    lifespan=lifespan,
 )
+
+app.include_router(api_router)
 
 
 @app.get("/health", tags=["Health"])
