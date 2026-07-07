@@ -4,8 +4,11 @@ from dataclasses import dataclass, field
 
 @dataclass
 class ParsedDocument:
+    """Legacy parsed document — kept for backward compat."""
+
     content: str
     metadata: dict = field(default_factory=dict)
+    extracted_images: list[dict] = field(default_factory=list)
 
 
 class Parser(ABC):

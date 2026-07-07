@@ -28,7 +28,7 @@ class TestRabbitMQQueue:
         mock_channel.declare_exchange.assert_awaited_once_with(
             "dlx", type="direct", durable=True
         )
-        assert mock_channel.declare_queue.await_count == 4
+        assert mock_channel.declare_queue.await_count == 6
         assert queue._connection is mock_conn
         assert queue._channel is mock_channel
 

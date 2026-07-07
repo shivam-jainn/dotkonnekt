@@ -1,6 +1,7 @@
 from collections.abc import Callable, Coroutine
 import logging
 import asyncio
+import random
 
 import aio_pika
 
@@ -36,6 +37,7 @@ class RabbitMQQueue(Queue):
         # Pre-declare queues and their DLQs
         await self._setup_queue_with_dlq(settings.rabbitmq_queue)
         await self._setup_queue_with_dlq(settings.storage_queue)
+        await self._setup_queue_with_dlq(settings.langgraph_queue)
 
     async def _setup_queue_with_dlq(self, queue_name: str) -> aio_pika.Queue:
         dlq_name = f"{queue_name}_dlq"
@@ -127,13 +129,13 @@ class RabbitMQQueue(Queue):
                 
                 if retry_count < max_retries:
                     new_headers = {**headers, "x-retry-count": retry_count + 1}
+                    # Exponential backoff with jitter: min(2 * 2^n, 30) + uniform(0, 1)
+                    backoff = min(2.0 * (2 ** retry_count), 30.0) + random.uniform(0, 1)
                     logger.warning(
-                        "Retrying message on queue %s (%d/%d)",
-                        queue_name, retry_count + 1, max_retries
+                        "Retrying message on queue %s (%d/%d) in %.1fs",
+                        queue_name, retry_count + 1, max_retries, backoff
                     )
-                    
-                    # Backoff logic: sleep before retrying
-                    await asyncio.sleep(retry_count * 2)
+                    await asyncio.sleep(backoff)
                     
                     await self.publish(
                         queue_name=queue_name,

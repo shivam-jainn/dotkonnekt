@@ -34,9 +34,10 @@ class TestModelRegistry:
         reg = self._make_registry(tmp_path)
         assert reg.get_provider_config("openai") is None
 
-    def test_list_models_empty_when_disconnected(self, tmp_path):
+    def test_list_models_populated_for_disconnected_provider(self, tmp_path):
         reg = self._make_registry(tmp_path)
-        assert reg.list_models("openai") == []
+        assert reg.get_provider_status("openai").value == "disconnected"
+        assert len(reg.list_models("openai")) > 0
 
     def test_get_selected_config_empty(self, tmp_path):
         reg = self._make_registry(tmp_path)

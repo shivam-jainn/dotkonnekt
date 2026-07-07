@@ -44,9 +44,11 @@ class TestPipeline:
 
         pipeline = Pipeline()
 
-        mock_parsed = MagicMock()
-        mock_parsed.content = "parsed content"
-        mock_parsed.metadata = {"filename": "test.pdf"}
+        mock_document = MagicMock()
+        mock_document.filename = "test.pdf"
+        mock_document.metadata = {"filename": "test.pdf", "job_id": "job-1"}
+        mock_document.raw_text = "parsed content"
+        mock_document.pages = []
 
         mock_chunks = [MagicMock(content="chunk1", index=0, metadata={})]
 
@@ -55,11 +57,16 @@ class TestPipeline:
         ]
 
         with (
-            patch.object(pipeline, "_parse", return_value=mock_parsed),
-            patch.object(pipeline, "_chunk", return_value=mock_chunks),
+            patch.object(pipeline, "_parse_to_document", return_value=mock_document),
+            patch.object(pipeline, "_chunk_document", return_value=mock_chunks),
+            patch.object(pipeline, "_enrich_deterministic"),
+            patch.object(pipeline, "_enrich_semantic", new_callable=AsyncMock),
+            patch("src.core.pipeline.build_clause_graph"),
             patch.object(
-                pipeline, "_embed", new_callable=AsyncMock, return_value=mock_embedded
+                pipeline, "_embed_document_chunks", new_callable=AsyncMock,
+                return_value=(mock_chunks, [[0.1, 0.2]])
             ),
+            patch.object(pipeline, "_to_embedded_chunks", return_value=mock_embedded),
         ):
             result = await pipeline.run(
                 job_id="job-1",
@@ -114,20 +121,24 @@ class TestPipeline:
         with (
             patch.object(
                 pipeline,
-                "_parse",
-                return_value=MagicMock(content="text", metadata={}),
+                "_parse_to_document",
+                return_value=MagicMock(filename="a.pdf", metadata={}, raw_text="text", pages=[]),
             ),
             patch.object(
                 pipeline,
-                "_chunk",
+                "_chunk_document",
                 return_value=[MagicMock(content="c", index=0, metadata={})],
             ),
+            patch.object(pipeline, "_enrich_deterministic"),
+            patch.object(pipeline, "_enrich_semantic", new_callable=AsyncMock),
+            patch("src.core.pipeline.build_clause_graph"),
             patch.object(
                 pipeline,
-                "_embed",
+                "_embed_document_chunks",
                 new_callable=AsyncMock,
-                return_value=mock_embedded,
+                return_value=([MagicMock(content="c", index=0, metadata={})], [[0.1]]),
             ),
+            patch.object(pipeline, "_to_embedded_chunks", return_value=mock_embedded),
         ):
             result = await pipeline.run(
                 job_id="job-3",
@@ -164,20 +175,24 @@ class TestPipeline:
         with (
             patch.object(
                 pipeline,
-                "_parse",
-                return_value=MagicMock(content="text", metadata={}),
+                "_parse_to_document",
+                return_value=MagicMock(filename="ok.pdf", metadata={}, raw_text="text", pages=[]),
             ),
             patch.object(
                 pipeline,
-                "_chunk",
+                "_chunk_document",
                 return_value=[MagicMock(content="c", index=0, metadata={})],
             ),
+            patch.object(pipeline, "_enrich_deterministic"),
+            patch.object(pipeline, "_enrich_semantic", new_callable=AsyncMock),
+            patch("src.core.pipeline.build_clause_graph"),
             patch.object(
                 pipeline,
-                "_embed",
+                "_embed_document_chunks",
                 new_callable=AsyncMock,
-                return_value=mock_embedded,
+                return_value=([MagicMock(content="c", index=0, metadata={})], [[0.1]]),
             ),
+            patch.object(pipeline, "_to_embedded_chunks", return_value=mock_embedded),
         ):
             result = await pipeline.run(
                 job_id="job-4",

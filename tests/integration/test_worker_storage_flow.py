@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -121,7 +121,7 @@ class TestWorkerToStorageFlow:
                 content="Dedup content",
                 embedding=[0.5] * 768,
                 index=0,
-                metadata={"filename": "dedup.pdf", "chunk_index": 0},
+                metadata={"job_id": "dedup-job", "filename": "dedup.pdf", "chunk_index": 0},
             ),
         ]
 
@@ -157,7 +157,7 @@ class TestWorkerToStorageFlow:
         self, qdrant_client, test_collection, test_storage_queue
     ):
         pdf_data = _make_pdf("This is a test document for end-to-end integration test.")
-        mock_storage = MagicMock()
+        mock_storage = AsyncMock()
         mock_storage.download_bytes.return_value = pdf_data
 
         pipeline = Pipeline()

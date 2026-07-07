@@ -5,6 +5,8 @@ from fastapi import FastAPI
 
 from src.api.router import api_router
 from src.configs import settings
+from src.core.models.registry import registry
+from src.core.storer import VectorStorer
 from src.database import db
 from src.queue import queue
 
@@ -13,6 +15,11 @@ from src.queue import queue
 async def lifespan(app: FastAPI):
     await db.connect()
     await queue.connect()
+    await registry._refresh_dynamic_providers()
+
+    storer = VectorStorer()
+    await storer.initialize()
+    await storer.close()
 
     yield
 
@@ -24,6 +31,16 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     lifespan=lifespan,
+)
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(api_router)
