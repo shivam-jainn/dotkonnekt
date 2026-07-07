@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def _strip_think_tags(text: str) -> str:
     import re
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
 class QAState(TypedDict):
@@ -41,50 +41,25 @@ async def retrieve_context_node(state: QAState) -> dict:
     top_k = state.get("top_k", 5)
     collection = state.get("collection", settings.qdrant_collection)
 
-    qdrant = AsyncQdrantClient(
-        host=settings.qdrant_host,
-        port=settings.qdrant_port,
-        api_key=settings.qdrant_api_key,
-        https=False,
-        check_compatibility=False,
+    from src.core.retrieval.pipeline import RetrievalPipeline
+    pipeline = RetrievalPipeline()
+    res = await pipeline.execute(
+        job_id=job_id,
+        query=query,
+        top_k=top_k,
+        collection=collection,
     )
-
-    embedder = Embedder()
-    try:
-        query_vector = await embedder.embed_query(query)
-    except Exception as exc:
-        logger.error("[retrieve_context_node] Failed to embed query: %s", exc)
-        return {"context_chunks": []}
-
-    try:
-        search_result = await qdrant.query_points(
-            collection_name=collection,
-            query=query_vector,
-            query_filter=Filter(
-                must=[FieldCondition(key="job_id", match=MatchValue(value=job_id))]
-            ),
-            limit=top_k,
-            with_payload=True,
-            with_vectors=False,
-        )
-
-        chunks = [
-            {
-                "content": hit.payload.get("content", ""),
-                "index": hit.payload.get("index", 0),
-                "score": hit.score,
-            }
-            for hit in search_result.points
-        ]
-
-        logger.info(
-            "[retrieve_context_node] Retrieved %d chunks for job %s", len(chunks), job_id
-        )
-        return {"context_chunks": chunks}
-
-    except Exception as exc:
-        logger.error("[retrieve_context_node] Qdrant search failed: %s", exc)
-        return {"context_chunks": []}
+    
+    logger.info(
+        "[retrieve_context_node] Retrieved and expanded %d chunks for job %s, intent: %s",
+        len(res["chunks"]),
+        job_id,
+        res["intent"],
+    )
+    return {
+        "context_chunks": res["chunks"],
+        "context_text": res["context_text"],
+    }
 
 
 async def generate_answer_node(state: QAState) -> dict:
@@ -94,9 +69,10 @@ async def generate_answer_node(state: QAState) -> dict:
     if not chunks:
         return {"answer": "No relevant context found in the document for your query."}
 
-    context_text = "\n\n".join(
-        f"[Chunk {c['index']}] {c['content']}" for c in chunks
-    )
+    context_text = state.get("context_text") or ""
+    if not context_text:
+        from src.core.retrieval.context import build_context_prompt
+        context_text = build_context_prompt(chunks)
 
     prompt = (
         "Answer the query using ONLY the context below. Be concise — direct sentences, no filler. "
@@ -205,7 +181,14 @@ async def run_qa_stream(
         "event": "context",
         "data": json.dumps(
             [
-                {"index": c.get("index", 0), "content": c.get("content", ""), "score": c.get("score")}
+                {
+                    "index": c.get("index", 0),
+                    "content": c.get("content", ""),
+                    "score": c.get("score"),
+                    "page": c.get("page"),
+                    "section": c.get("section"),
+                    "clause": c.get("clause"),
+                }
                 for c in chunks
             ]
         ),
@@ -215,13 +198,17 @@ async def run_qa_stream(
     if not chunks:
         yield {
             "event": "done",
-            "data": json.dumps({"answer": "No relevant context found in the document for your query."}),
+            "data": json.dumps(
+                {"answer": "No relevant context found in the document for your query."}
+            ),
         }
         return
 
-    context_text = "\n\n".join(
-        f"[Chunk {c['index']}] {c['content']}" for c in chunks
-    )
+    context_text = context_state.get("context_text") or ""
+    if not context_text:
+        from src.core.retrieval.context import build_context_prompt
+        context_text = build_context_prompt(chunks)
+        
     prompt = (
         "Answer the query using ONLY the context below. Be concise — direct sentences, no filler. "
         "Cite sources as [Chunk X]. If the context doesn't contain the answer, say so.\n\n"

@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     qdrant_port: int = 6333
     qdrant_api_key: str | None = None
     qdrant_collection: str = "documents"
+    qdrant_vector_size: int = 768
 
     # RabbitMQ
     rabbitmq_host: str = "localhost"

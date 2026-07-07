@@ -2,3 +2,5 @@
 .env
 
 sample-data/*
+
+model_config.json

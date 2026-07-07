@@ -23,6 +23,7 @@ async def run_ingestion_worker() -> None:
     worker = Worker()
 
     await db.connect()
+    await db.create_all()
     await queue.connect()
 
     logger.info("Ingestion worker started")
@@ -41,6 +42,8 @@ async def run_storage_worker() -> None:
     """Storage worker. Reads embeddings from the storage queue → Qdrant."""
     storage_worker = StorageWorker()
 
+    await db.connect()
+    await db.create_all()
     await queue.connect()
 
     logger.info("Storage worker started")
@@ -51,6 +54,7 @@ async def run_storage_worker() -> None:
     finally:
         await storage_worker.stop()
         await queue.close()
+        await db.close()
         logger.info("Storage worker stopped")
 
 
@@ -61,6 +65,7 @@ async def run_langgraph_worker() -> None:
     langgraph_worker = LangGraphWorker()
 
     await db.connect()
+    await db.create_all()
     await queue.connect()
 
     logger.info("LangGraph worker started")

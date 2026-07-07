@@ -4,6 +4,7 @@ import pytest
 
 from src.core.parsers.base import ParsedDocument
 from src.core.parsers.pdf import PDFParser
+from src.core.document import Document, Page, Heading, Paragraph, Block
 
 
 @pytest.mark.unit
@@ -105,3 +106,64 @@ class TestPDFParser:
     def test_supported_extensions(self):
         parser = PDFParser()
         assert parser.supported_extensions() == [".pdf"]
+
+    @patch("src.core.parsers.pdf.fitz")
+    def test_parse_to_document_returns_document_ir(self, mock_fitz):
+        """Test that parse_to_document returns a Document IR."""
+        mock_page = MagicMock()
+        mock_page.get_text.return_value = "Hello world"
+        mock_page.get_text.side_effect = lambda mode=None: (
+            "Hello world" if mode is None or mode == "text" else {
+                "blocks": [{
+                    "type": 0,
+                    "lines": [{
+                        "spans": [{"text": "Hello world", "size": 12}]
+                    }]
+                }]
+            }
+        )
+        mock_page.get_images.return_value = []
+
+        mock_doc = MagicMock()
+        mock_doc.__len__ = MagicMock(return_value=1)
+        mock_doc.__getitem__ = MagicMock(return_value=mock_page)
+
+        mock_fitz.open.return_value = mock_doc
+
+        parser = PDFParser()
+        result = parser.parse_to_document(b"data", "test.pdf")
+
+        assert isinstance(result, Document)
+        assert result.filename == "test.pdf"
+        assert len(result.pages) >= 1
+        assert result.raw_text != ""
+
+    @patch("src.core.parsers.pdf.fitz")
+    def test_parse_to_document_populates_metadata(self, mock_fitz):
+        """Test that parse_to_document populates metadata correctly."""
+        mock_page = MagicMock()
+        mock_page.get_text.return_value = "Content"
+        mock_page.get_text.side_effect = lambda mode=None: (
+            "Content" if mode is None or mode == "text" else {
+                "blocks": [{
+                    "type": 0,
+                    "lines": [{
+                        "spans": [{"text": "Content", "size": 12}]
+                    }]
+                }]
+            }
+        )
+        mock_page.get_images.return_value = []
+
+        mock_doc = MagicMock()
+        mock_doc.__len__ = MagicMock(return_value=1)
+        mock_doc.__getitem__ = MagicMock(return_value=mock_page)
+
+        mock_fitz.open.return_value = mock_doc
+
+        parser = PDFParser()
+        result = parser.parse_to_document(b"data", "test.pdf")
+
+        assert result.metadata["filename"] == "test.pdf"
+        assert result.metadata["parser"] == "pdf"
+        assert "total_pages" in result.metadata

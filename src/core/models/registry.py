@@ -34,13 +34,28 @@ class ModelRegistry:
                     self._configs[pid] = ProviderConfig(**pcfg)
                     self._status[pid] = ProviderStatus.CONNECTED
                     meta = get_provider(pid)
-                    if meta:
+                    if meta and pid not in ("lmstudio", "ollama"):
                         self._models[pid] = self._static_models(meta)
                 for task_str, entry in data.get("selected", {}).items():
                     self._selected[TaskType(task_str)] = ModelConfigEntry(**entry)
                 logger.info("Loaded model config from %s", CONFIG_PATH)
             except Exception:
                 logger.exception("Failed to load model config")
+
+        for meta in PROVIDERS:
+            if meta.id not in self._models and meta.id not in ("lmstudio", "ollama"):
+                self._models[meta.id] = self._static_models(meta)
+
+    async def _refresh_dynamic_providers(self) -> None:
+        for pid, cfg in self._configs.items():
+            meta = get_provider(pid)
+            if meta and pid in ("lmstudio", "ollama"):
+                api_base = cfg.api_base or meta.default_api_base
+                try:
+                    models = await self._fetch_models(pid, meta, api_base, cfg)
+                    self._models[pid] = models
+                except Exception:
+                    logger.warning("Failed to refresh models for %s", pid)
 
     def _save_config(self) -> None:
         data = {
@@ -342,7 +357,7 @@ class ModelRegistry:
         if entry is None:
             return {}
 
-        kwargs: dict = {"model": entry.litellm_model}
+        kwargs: dict = {"model": entry.litellm_model, "_provider_id": entry.provider_id}
 
         if entry.api_base:
             kwargs["api_base"] = entry.api_base

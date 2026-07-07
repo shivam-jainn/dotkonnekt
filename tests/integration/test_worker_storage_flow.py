@@ -121,7 +121,7 @@ class TestWorkerToStorageFlow:
                 content="Dedup content",
                 embedding=[0.5] * 768,
                 index=0,
-                metadata={"filename": "dedup.pdf", "chunk_index": 0},
+                metadata={"job_id": "dedup-job", "filename": "dedup.pdf", "chunk_index": 0},
             ),
         ]
 

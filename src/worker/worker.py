@@ -7,7 +7,7 @@ from src.core.pipeline import Pipeline
 from src.database import db
 from src.database.models import JobModel
 from src.models.job import IngestionJob, JobStatus
-from src.models.langgraph_message import LangGraphMessage, RawChunk
+from src.models.langgraph_message import LangGraphMessage, AnalysisChunkModel
 from src.models.storage import StorageMessage, StoredChunk
 from src.queue import queue
 
@@ -15,8 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class Worker:
-    def __init__(self) -> None:
-        self.pipeline = Pipeline()
+    def __init__(self, enable_semantic_enrichment: bool = False) -> None:
+        self.pipeline = Pipeline(
+            enable_semantic_enrichment=enable_semantic_enrichment,
+        )
         self._running = False
         self._stop_event = asyncio.Event()
 
@@ -39,10 +41,26 @@ class Worker:
                 collection=collection,
                 chunks=[
                     StoredChunk(
+                        id=ec.id,
                         content=ec.content,
                         embedding=ec.embedding,
                         index=ec.index,
                         metadata={**ec.metadata, "job_id": job.job_id},
+                        page=ec.page,
+                        section=ec.section,
+                        subsection=ec.subsection,
+                        clause=ec.clause,
+                        previous_chunk=ec.previous_chunk_id,
+                        next_chunk=ec.next_chunk_id,
+                        summary=ec.semantic_metadata.get("summary") if ec.semantic_metadata else None,
+                        keywords=ec.semantic_metadata.get("keywords", []) if ec.semantic_metadata else [],
+                        obligations=ec.semantic_metadata.get("obligations", []) if ec.semantic_metadata else [],
+                        entities=ec.semantic_metadata.get("entities", []) if ec.semantic_metadata else [],
+                        risks=ec.semantic_metadata.get("risks", []) if ec.semantic_metadata else [],
+                        document_type=ec.metadata.get("document_type"),
+                        party_sentences=ec.semantic_metadata.get("party_sentences", {}) if ec.semantic_metadata else {},
+                        obligations_by_party=ec.semantic_metadata.get("obligations_by_party", []) if ec.semantic_metadata else [],
+                        risks_by_party=ec.semantic_metadata.get("risks_by_party", []) if ec.semantic_metadata else [],
                     )
                     for ec in batch
                 ],
@@ -59,11 +77,7 @@ class Worker:
         )
 
     async def _publish_for_langgraph(self, job: IngestionJob, result) -> None:
-        """Publish raw (un-analysed) chunks to the langgraph queue.
-
-        The LangGraphWorker will consume these and run the LLM agent graph
-        to produce structured findings (obligations, entities, risky terms).
-        """
+        """Publish raw (un-analysed) chunks to the langgraph queue."""
         if not result.embedded_chunks:
             return
 
@@ -72,9 +86,19 @@ class Worker:
             job_id=job.job_id,
             collection=collection,
             chunks=[
-                RawChunk(
+                AnalysisChunkModel(
+                    id=ec.id,
                     content=ec.content,
                     index=ec.index,
+                    page=ec.page,
+                    section=ec.section,
+                    subsection=ec.subsection,
+                    clause=ec.clause,
+                    previous_chunk=ec.previous_chunk_id,
+                    next_chunk=ec.next_chunk_id,
+                    clause_id=ec.clause_id,
+                    derived_metadata=ec.semantic_metadata, # this has derived metadata format we created in Pipeline
+                    content_type=ec.content_type,
                     metadata=ec.metadata,
                 )
                 for ec in result.embedded_chunks
@@ -86,7 +110,7 @@ class Worker:
         )
 
         logger.info(
-            "Published %d raw chunks to langgraph queue for job %s",
+            "Published %d chunks to langgraph queue for job %s",
             len(result.embedded_chunks),
             job.job_id,
         )
@@ -104,7 +128,7 @@ class Worker:
 
             await self._update_job_status(job.job_id, JobStatus.processing)
 
-            # Run the parse → chunk → embed pipeline
+            # Run the parse → chunk → enrich → embed pipeline
             files_dict = [f.model_dump() for f in job.files]
             result = await self.pipeline.run(job.job_id, files_dict)
 
@@ -114,8 +138,6 @@ class Worker:
             await self._publish_for_storage(job, result)
             await self._publish_for_langgraph(job, result)
 
-            # Status stays "processing" — the LangGraphWorker will flip it to
-            # "completed" or "failed" once analysis finishes.
             logger.info(
                 "Job %s ingestion done: %d chunks → storage + langgraph queues",
                 job.job_id,

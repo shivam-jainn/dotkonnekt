@@ -76,3 +76,19 @@ Content-Disposition: form-data; name="metadata"
 
 {"source": "sbi", "version": 1}
 ------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Variables for downstream requests
+@job_id = 34b5af72-0b2f-49b6-9a68-192fddc3ae47
+
+### Get Document Job Status
+GET {{base_url}}/api/v1/documents/{{job_id}}
+
+### Stream Document Progress (SSE)
+GET {{base_url}}/api/v1/documents/{{job_id}}/stream
+
+### Get Document Report
+GET {{base_url}}/api/v1/documents/{{job_id}}/report
+
+# NOTE: The query endpoints have been migrated to a dedicated route.
+# Please use the requests in './query.http' for querying documents.
+

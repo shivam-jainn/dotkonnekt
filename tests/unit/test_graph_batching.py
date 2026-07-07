@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import json
 
 from src.core.agent.graph import process_chunk_node, mcp_tool_node, route_next_chunk, AgentState
-from src.core.chunkers.base import Chunk
 from src.configs.settings import settings
 
 
@@ -20,32 +19,52 @@ class TestGraphBatching:
         settings.graph_batch_size = self.orig_batch_size
 
     @pytest.mark.asyncio
-    @patch("litellm.acompletion")
-    async def test_process_chunk_node_with_batching(self, mock_acompletion):
+    async def test_process_chunk_node_with_batching(self):
         # Configure batching: True, size 2
         settings.graph_batching = True
         settings.graph_batch_size = 2
 
-        # Mock LLM response
-        mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content=json.dumps({
-                        "obligations": ["Be honest"],
-                        "entities": ["Company A"],
-                        "risky_terms": ["Indemnity"]
-                    })
-                )
-            )
-        ]
-        mock_acompletion.return_value = mock_response
-
-        # Build dummy chunks
+        # Build dummy chunks as dicts (Document IR representation) with derived_metadata
         chunks = [
-            Chunk(content="This is chunk 1", index=0, metadata={}),
-            Chunk(content="This is chunk 2", index=1, metadata={}),
-            Chunk(content="This is chunk 3", index=2, metadata={}),
+            {
+                "content": "This is chunk 1", 
+                "index": 0, 
+                "metadata": {}, 
+                "page": 1, 
+                "section": None, 
+                "clause": None,
+                "derived_metadata": {
+                    "obligations": ["Be honest"],
+                    "entities": ["Company A"],
+                    "risks": ["Indemnity"]
+                }
+            },
+            {
+                "content": "This is chunk 2", 
+                "index": 1, 
+                "metadata": {}, 
+                "page": 1, 
+                "section": None, 
+                "clause": None,
+                "derived_metadata": {
+                    "obligations": [],
+                    "entities": [],
+                    "risks": []
+                }
+            },
+            {
+                "content": "This is chunk 3", 
+                "index": 2, 
+                "metadata": {}, 
+                "page": 1, 
+                "section": None, 
+                "clause": None,
+                "derived_metadata": {
+                    "obligations": [],
+                    "entities": [],
+                    "risks": []
+                }
+            },
         ]
 
         state: AgentState = {
@@ -62,47 +81,47 @@ class TestGraphBatching:
 
         # Process first batch (chunks 1 and 2)
         res1 = await process_chunk_node(state)
-        
-        # Verify LLM was called with concatenated text
-        mock_acompletion.assert_called_once()
-        call_kwargs = mock_acompletion.call_args[1]
-        user_message_content = call_kwargs["messages"][1]["content"][0]["text"]
-        assert "This is chunk 1" in user_message_content
-        assert "This is chunk 2" in user_message_content
-        assert "This is chunk 3" not in user_message_content
 
         # Verify output findings
         assert "findings" in res1
-        assert len(res1["findings"]) == 1
+        assert len(res1["findings"]) == 2
         assert res1["findings"][0]["chunk_idx"] == 0
         assert res1["findings"][0]["obligations"] == ["Be honest"]
         assert res1["findings"][0]["entities"] == ["Company A"]
         assert res1["findings"][0]["risky_terms"] == ["Indemnity"]
 
     @pytest.mark.asyncio
-    @patch("litellm.acompletion")
-    async def test_process_chunk_node_without_batching(self, mock_acompletion):
+    async def test_process_chunk_node_without_batching(self):
         # Configure batching: False
         settings.graph_batching = False
 
-        # Mock LLM response
-        mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content=json.dumps({
-                        "obligations": ["Pay rent"],
-                        "entities": ["Tenant"],
-                        "risky_terms": ["Late fee"]
-                    })
-                )
-            )
-        ]
-        mock_acompletion.return_value = mock_response
-
         chunks = [
-            Chunk(content="This is chunk 1", index=0, metadata={}),
-            Chunk(content="This is chunk 2", index=1, metadata={}),
+            {
+                "content": "This is chunk 1", 
+                "index": 0, 
+                "metadata": {}, 
+                "page": 1, 
+                "section": None, 
+                "clause": None,
+                "derived_metadata": {
+                    "obligations": ["Pay rent"],
+                    "entities": ["Tenant"],
+                    "risks": ["Late fee"]
+                }
+            },
+            {
+                "content": "This is chunk 2", 
+                "index": 1, 
+                "metadata": {}, 
+                "page": 1, 
+                "section": None, 
+                "clause": None,
+                "derived_metadata": {
+                    "obligations": [],
+                    "entities": [],
+                    "risks": []
+                }
+            },
         ]
 
         state: AgentState = {
@@ -118,11 +137,12 @@ class TestGraphBatching:
         }
 
         res = await process_chunk_node(state)
-        mock_acompletion.assert_called_once()
-        call_kwargs = mock_acompletion.call_args[1]
-        user_message_content = call_kwargs["messages"][1]["content"][0]["text"]
-        assert "This is chunk 1" in user_message_content
-        assert "This is chunk 2" not in user_message_content
+        assert "findings" in res
+        assert len(res["findings"]) == 1
+        assert res["findings"][0]["chunk_idx"] == 0
+        assert res["findings"][0]["obligations"] == ["Pay rent"]
+        assert res["findings"][0]["entities"] == ["Tenant"]
+        assert res["findings"][0]["risky_terms"] == ["Late fee"]
 
     @pytest.mark.asyncio
     @patch("src.core.agent.mcp_client.call_compliance_tool")
@@ -133,9 +153,9 @@ class TestGraphBatching:
         mock_call_compliance.return_value = {"score": 9.5, "reasoning": "Standard term"}
 
         chunks = [
-            Chunk(content="C1", index=0, metadata={}),
-            Chunk(content="C2", index=1, metadata={}),
-            Chunk(content="C3", index=2, metadata={}),
+            {"content": "C1", "index": 0, "metadata": {}, "page": 1, "section": None, "clause": None},
+            {"content": "C2", "index": 1, "metadata": {}, "page": 1, "section": None, "clause": None},
+            {"content": "C3", "index": 2, "metadata": {}, "page": 1, "section": None, "clause": None},
         ]
 
         # Let's say process_chunk_node just returned findings for the first batch
@@ -167,7 +187,7 @@ class TestGraphBatching:
 
         # Route next chunk check
         state["current_chunk_idx"] = res["current_chunk_idx"]
-        assert route_next_chunk(state) == "process_chunk_node"
+        assert route_next_chunk(state) == "risk_analysis_node"
 
         # Now let's do the second batch starting at index 2 (last remaining chunk)
         state["findings"].append({

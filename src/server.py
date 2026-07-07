@@ -5,6 +5,8 @@ from fastapi import FastAPI
 
 from src.api.router import api_router
 from src.configs import settings
+from src.core.models.registry import registry
+from src.core.storer import VectorStorer
 from src.database import db
 from src.queue import queue
 
@@ -13,6 +15,11 @@ from src.queue import queue
 async def lifespan(app: FastAPI):
     await db.connect()
     await queue.connect()
+    await registry._refresh_dynamic_providers()
+
+    storer = VectorStorer()
+    await storer.initialize()
+    await storer.close()
 
     yield
 

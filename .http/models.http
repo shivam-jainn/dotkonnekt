@@ -21,6 +21,14 @@ Content-Type: application/json
   "api_base": "http://localhost:1234/v1"
 }
 
+### Connect to Provider (Groq)
+POST {{base_url}}/api/v1/models/providers/groq/connect
+Content-Type: application/json
+
+{
+  "api_key": "gsk_your_api_key_here"
+}
+
 ### Connect to Provider (OpenAI)
 POST {{base_url}}/api/v1/models/providers/openai/connect
 Content-Type: application/json
@@ -39,6 +47,11 @@ Content-Type: application/json
 
 ### List Models from Provider
 GET {{base_url}}/api/v1/models/providers/lmstudio/models
+Accept: application/json
+
+
+### List Models from Groq Provider
+GET {{base_url}}/api/v1/models/providers/groq/models
 Accept: application/json
 
 ### Get Current Model Configuration
@@ -61,6 +74,6 @@ Content-Type: application/json
 
 {
   "task": "llm",
-  "provider_id": "lmstudio",
-  "model_id": "text-embedding-nomic-embed-text-v1.5"
+  "provider_id": "groq",
+  "model_id": "qwen/qwen3-32b"
 }

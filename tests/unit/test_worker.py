@@ -10,24 +10,10 @@ from src.worker.worker import Worker
 
 @pytest.mark.unit
 class TestWorker:
-    @patch("src.core.tracing.collector.StructuredTraceCollector")
-    @patch("src.core.agent.graph.create_graph")
     @patch("src.worker.worker.db")
     async def test_process_job_updates_status_to_completed(
-        self, mock_db, mock_create_graph, mock_tracer_cls
+        self, mock_db
     ):
-        mock_graph = AsyncMock()
-        mock_graph.ainvoke.return_value = {
-            "chunks": [1, 2, 3, 4, 5],
-            "errors": []
-        }
-        mock_create_graph.return_value = mock_graph
-        mock_tracer = AsyncMock()
-        mock_tracer_cls.return_value = mock_tracer
-        
-        mock_tracer = AsyncMock()
-        mock_tracer_cls.return_value = mock_tracer
-
         mock_session = AsyncMock()
         mock_job = MagicMock()
         mock_job.job_id = "job-1"
@@ -39,9 +25,18 @@ class TestWorker:
         mock_db.pool.return_value = mock_cm
 
         worker = Worker()
-        # Mock _publish_for_storage since it's a separate integration concern
         worker._publish_for_storage = AsyncMock()
-        
+        worker._publish_for_langgraph = AsyncMock()
+
+        mock_result = PipelineResult(
+            job_id="job-1",
+            total_chunks=5,
+            embedded_chunks=[],
+            documents=[],
+            errors=[],
+        )
+        worker.pipeline.run = AsyncMock(return_value=mock_result)
+
         job_data = {
             "job_id": "job-1",
             "status": "queued",
@@ -57,28 +52,13 @@ class TestWorker:
 
         await worker._process_job(json.dumps(job_data).encode())
 
-        assert mock_job.status == JobStatus.completed.value
-        mock_tracer.flush_to_db.assert_awaited_once()
-        mock_graph.ainvoke.assert_awaited_once()
+        # Ingestion worker sets status to "processing" — LangGraphWorker sets "completed"
+        assert mock_job.status == JobStatus.processing.value
 
-    @patch("src.core.tracing.collector.StructuredTraceCollector")
-    @patch("src.core.agent.graph.create_graph")
     @patch("src.worker.worker.db")
     async def test_process_job_updates_status_to_processing(
-        self, mock_db, mock_create_graph, mock_tracer_cls
+        self, mock_db
     ):
-        mock_graph = AsyncMock()
-        mock_graph.ainvoke.return_value = {
-            "chunks": [],
-            "errors": []
-        }
-        mock_create_graph.return_value = mock_graph
-        mock_tracer = AsyncMock()
-        mock_tracer_cls.return_value = mock_tracer
-        
-        mock_tracer = AsyncMock()
-        mock_tracer_cls.return_value = mock_tracer
-
         mock_session = AsyncMock()
         mock_job = MagicMock()
         mock_job.job_id = "job-1"
@@ -91,7 +71,11 @@ class TestWorker:
 
         worker = Worker()
         worker._publish_for_storage = AsyncMock()
-        
+        worker._publish_for_langgraph = AsyncMock()
+
+        mock_result = PipelineResult(job_id="job-1")
+        worker.pipeline.run = AsyncMock(return_value=mock_result)
+
         job_data = {
             "job_id": "job-1",
             "status": "queued",
@@ -100,22 +84,12 @@ class TestWorker:
 
         await worker._process_job(json.dumps(job_data).encode())
 
-        assert mock_session.get.await_count == 2
-        assert mock_session.commit.await_count >= 2
+        # Ingestion worker sets status to "processing" (1 get + 1 commit)
+        assert mock_session.get.await_count == 1
+        assert mock_session.commit.await_count >= 1
 
-    @patch("src.core.tracing.collector.StructuredTraceCollector")
-    @patch("src.core.agent.graph.create_graph")
     @patch("src.worker.worker.db")
-    async def test_process_job_calls_pipeline_run(self, mock_db, mock_create_graph, mock_tracer_cls):
-        mock_graph = AsyncMock()
-        mock_graph.ainvoke.return_value = {
-            "chunks": [],
-            "errors": []
-        }
-        mock_create_graph.return_value = mock_graph
-        mock_tracer = AsyncMock()
-        mock_tracer_cls.return_value = mock_tracer
-
+    async def test_process_job_calls_pipeline_run(self, mock_db):
         mock_session = AsyncMock()
         mock_job = MagicMock()
         mock_job.job_id = "job-1"
@@ -128,7 +102,11 @@ class TestWorker:
 
         worker = Worker()
         worker._publish_for_storage = AsyncMock()
-        
+        worker._publish_for_langgraph = AsyncMock()
+
+        mock_result = PipelineResult(job_id="job-1")
+        worker.pipeline.run = AsyncMock(return_value=mock_result)
+
         job_data = {
             "job_id": "job-1",
             "status": "queued",
@@ -144,23 +122,16 @@ class TestWorker:
 
         await worker._process_job(json.dumps(job_data).encode())
 
-        mock_graph.ainvoke.assert_awaited_once()
-        call_args, call_kwargs = mock_graph.ainvoke.call_args
-        assert call_args[0]["job_id"] == "job-1"
-        assert len(call_args[0]["files"]) == 1
+        worker.pipeline.run.assert_awaited_once()
+        call_args, call_kwargs = worker.pipeline.run.call_args
+        assert call_args[0] == "job-1"
+        assert len(call_args[1]) == 1
+        assert call_args[1][0]["filename"] == "a.pdf"
 
-    @patch("src.core.tracing.collector.StructuredTraceCollector")
-    @patch("src.core.agent.graph.create_graph")
     @patch("src.worker.worker.db")
     async def test_process_job_updates_to_failed_on_exception(
-        self, mock_db, mock_create_graph, mock_tracer_cls
+        self, mock_db
     ):
-        mock_graph = AsyncMock()
-        mock_graph.ainvoke.side_effect = Exception("graph crashed")
-        mock_create_graph.return_value = mock_graph
-        mock_tracer = AsyncMock()
-        mock_tracer_cls.return_value = mock_tracer
-
         mock_session = AsyncMock()
         mock_job = MagicMock()
         mock_job.job_id = "job-1"
@@ -171,6 +142,8 @@ class TestWorker:
         mock_db.pool.return_value = mock_cm
 
         worker = Worker()
+        worker.pipeline.run = AsyncMock(side_effect=Exception("pipeline crashed"))
+
         job_data = {
             "job_id": "job-1",
             "status": "queued",
@@ -236,21 +209,10 @@ class TestWorker:
         await worker.stop()
         assert worker._running is False
 
-    @patch("src.core.tracing.collector.StructuredTraceCollector")
-    @patch("src.core.agent.graph.create_graph")
     @patch("src.worker.worker.db")
     async def test_process_job_passes_files_to_pipeline(
-        self, mock_db, mock_create_graph, mock_tracer_cls
+        self, mock_db
     ):
-        mock_graph = AsyncMock()
-        mock_graph.ainvoke.return_value = {
-            "chunks": [],
-            "errors": []
-        }
-        mock_create_graph.return_value = mock_graph
-        mock_tracer = AsyncMock()
-        mock_tracer_cls.return_value = mock_tracer
-
         mock_session = AsyncMock()
         mock_job = MagicMock()
         mock_job.job_id = "j1"
@@ -263,7 +225,11 @@ class TestWorker:
 
         worker = Worker()
         worker._publish_for_storage = AsyncMock()
-        
+        worker._publish_for_langgraph = AsyncMock()
+
+        mock_result = PipelineResult(job_id="j1")
+        worker.pipeline.run = AsyncMock(return_value=mock_result)
+
         job_data = {
             "job_id": "j1",
             "status": "queued",
@@ -285,7 +251,8 @@ class TestWorker:
 
         await worker._process_job(json.dumps(job_data).encode())
 
-        call_args, call_kwargs = mock_graph.ainvoke.call_args
-        assert len(call_args[0]["files"]) == 2
-        assert call_args[0]["files"][0]["filename"] == "a.pdf"
-        assert call_args[0]["files"][1]["filename"] == "b.pdf"
+        call_args, call_kwargs = worker.pipeline.run.call_args
+        assert call_args[0] == "j1"
+        assert len(call_args[1]) == 2
+        assert call_args[1][0]["filename"] == "a.pdf"
+        assert call_args[1][1]["filename"] == "b.pdf"

@@ -71,12 +71,13 @@ class LangGraphWorker:
             app = create_graph()
             tracer = StructuredTraceCollector(job_id=job_id)
 
+            # Convert chunks to Document IR dict representation for graph nodes
+            chunk_dicts = [c.model_dump() for c in msg.chunks]
+
             initial_state = {
                 "job_id": job_id,
-                # Pass chunks as plain dicts so graph nodes can access them via
-                # state["chunks"]; graph_batch_size controls batching inside the
-                # process_chunk_node loop.
-                "chunks": [c.model_dump() for c in msg.chunks],
+                # Pass chunks as dicts with Document IR fields
+                "chunks": chunk_dicts,
                 "files": [],          # already ingested upstream
                 "extracted_images": [],
                 "current_chunk_idx": 0,

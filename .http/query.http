@@ -1,0 +1,31 @@
+### Variables
+@base_url = http://localhost:8000
+@job_id = 697f966a-81e7-42e5-89c2-b045b84cb9f0
+
+### Query Document (Non-streaming RAG)
+POST {{base_url}}/api/v1/query/{{job_id}}
+Content-Type: application/json
+
+{
+  "query": "What are the key obligations mentioned?",
+  "top_k": 5
+}
+
+### Query Document with Custom Parameters
+POST {{base_url}}/api/v1/query/{{job_id}}
+Content-Type: application/json
+
+{
+  "query": "Are there any risky conditions or terms?",
+  "top_k": 3,
+  "collection": "documents"
+}
+
+### Stream Query Answer (SSE Streaming)
+POST {{base_url}}/api/v1/query/{{job_id}}/stream
+Content-Type: application/json
+
+{
+  "query": "Explain the named entities in this document",
+  "top_k": 5
+}
