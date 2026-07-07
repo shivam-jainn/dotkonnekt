@@ -14,6 +14,7 @@ class StorageWorker:
     def __init__(self) -> None:
         self.storer = VectorStorer()
         self._running = False
+        self._stop_event = asyncio.Event()
 
     async def _store_chunks(self, raw_message: bytes) -> None:
         try:
@@ -56,9 +57,11 @@ class StorageWorker:
         await queue.consume(settings.storage_queue, self._store_chunks)
 
         logger.info("Storage worker is now listening for messages")
-        await asyncio.Event().wait()
+        self._stop_event.clear()
+        await self._stop_event.wait()
 
     async def stop(self) -> None:
         self._running = False
+        self._stop_event.set()
         await self.storer.close()
         logger.info("Storage worker stopped")

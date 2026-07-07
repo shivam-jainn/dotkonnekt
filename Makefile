@@ -1,13 +1,25 @@
-.PHONY: install infra-up infra-down dev worker storage-worker test test-unit test-integration test-upload-api test-all lint clean migrate migrate-autogenerate migrate-check migrate-stamp
+.PHONY: install infra-up infra-down dev worker storage-worker langgraph-worker workers-all test test-unit test-integration test-upload-api test-all lint clean migrate migrate-autogenerate migrate-check migrate-stamp
 
 dev:
 	uv run uvicorn src.server:app --reload
 
 worker:
-	uv run python -m src.worker.run
+	uv run python -m src.worker.run --worker ingestion
 
 storage-worker:
 	uv run python -m src.worker.run --worker storage
+
+langgraph-worker:
+	uv run python -m src.worker.run --worker langgraph
+
+## Run all three workers in parallel (foreground, Ctrl-C stops all)
+workers-all:
+	@echo "Starting ingestion, langgraph, and storage workers..."
+	@trap 'kill 0' SIGINT; \
+		uv run python -m src.worker.run --worker ingestion & \
+		uv run python -m src.worker.run --worker langgraph & \
+		uv run python -m src.worker.run --worker storage & \
+		wait
 
 install:
 	uv sync --group dev
@@ -17,6 +29,9 @@ infra-up:
 
 infra-down:
 	docker compose down
+
+reset-volumes:
+	docker compose down -v
 
 test:
 	uv run pytest -v

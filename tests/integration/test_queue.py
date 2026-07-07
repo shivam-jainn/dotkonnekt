@@ -72,7 +72,7 @@ class TestRabbitMQIntegration:
         sent = b"persistent-message"
 
         # declare the queue first so publish has a durable home
-        await queue._channel.declare_queue(queue_name, durable=True)
+        await queue._setup_queue_with_dlq(queue_name)
         await queue.publish(queue_name, sent)
 
         received = []

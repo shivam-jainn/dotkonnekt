@@ -60,7 +60,7 @@ class VectorStorer:
             PointStruct(
                 id=uuid.uuid5(
                     QDRANT_NS,
-                    f"{chunk.metadata.get('filename', 'doc')}_{chunk.index}",
+                    f"{chunk.metadata.get('job_id', 'doc')}_{chunk.metadata.get('filename', 'doc')}_{chunk.index}",
                 ),
                 vector=chunk.embedding,
                 payload={

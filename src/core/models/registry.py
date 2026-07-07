@@ -33,6 +33,9 @@ class ModelRegistry:
                 for pid, pcfg in data.get("providers", {}).items():
                     self._configs[pid] = ProviderConfig(**pcfg)
                     self._status[pid] = ProviderStatus.CONNECTED
+                    meta = get_provider(pid)
+                    if meta:
+                        self._models[pid] = self._static_models(meta)
                 for task_str, entry in data.get("selected", {}).items():
                     self._selected[TaskType(task_str)] = ModelConfigEntry(**entry)
                 logger.info("Loaded model config from %s", CONFIG_PATH)
@@ -194,8 +197,12 @@ class ModelRegistry:
             headers = (
                 {"Authorization": f"Bearer {config.api_key}"} if config.api_key else {}
             )
+            url = base_url.rstrip("/")
+            if not url.endswith("/v1"):
+                url += "/v1"
+            url += "/models"
             async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{base_url}/v1/models", headers=headers)
+                resp = await client.get(url, headers=headers)
                 resp.raise_for_status()
                 data = resp.json()
 
@@ -219,37 +226,69 @@ class ModelRegistry:
             return []
 
     def _static_models(self, meta: ProviderMeta) -> list[ModelInfo]:
+        import litellm
+
+        provider_key = meta.litellm_prefix
+        if provider_key not in litellm.models_by_provider:
+            provider_key = meta.id
+
+        litellm_models = list(litellm.models_by_provider.get(provider_key, []))
+
+        if not litellm_models:
+            try:
+                litellm_models = list(litellm.get_valid_models(custom_llm_provider=meta.litellm_prefix))
+            except Exception:
+                pass
+        if not litellm_models:
+            try:
+                litellm_models = list(litellm.get_valid_models(custom_llm_provider=meta.id))
+            except Exception:
+                pass
+
         models = []
-        if TaskType.EMBEDDING in meta.supported_tasks:
-            models.extend(
-                [
+        registered_ids = set()
+
+        def add_model(model_id: str, litellm_model: str, task: TaskType):
+            if model_id not in registered_ids:
+                models.append(
                     ModelInfo(
-                        id="text-embedding-3-small",
-                        litellm_model=f"{meta.litellm_prefix}/text-embedding-3-small",
-                        task=TaskType.EMBEDDING,
-                    ),
-                    ModelInfo(
-                        id="text-embedding-3-large",
-                        litellm_model=f"{meta.litellm_prefix}/text-embedding-3-large",
-                        task=TaskType.EMBEDDING,
-                    ),
-                ]
-            )
-        if TaskType.LLM in meta.supported_tasks:
-            models.extend(
-                [
-                    ModelInfo(
-                        id="gpt-4o",
-                        litellm_model=f"{meta.litellm_prefix}/gpt-4o",
-                        task=TaskType.LLM,
-                    ),
-                    ModelInfo(
-                        id="gpt-4o-mini",
-                        litellm_model=f"{meta.litellm_prefix}/gpt-4o-mini",
-                        task=TaskType.LLM,
-                    ),
-                ]
-            )
+                        id=model_id,
+                        litellm_model=litellm_model,
+                        task=task,
+                    )
+                )
+                registered_ids.add(model_id)
+
+        for model_name in litellm_models:
+            task = TaskType.LLM
+            model_name_lower = model_name.lower()
+            if any(
+                kw in model_name_lower
+                for kw in ("embed", "bge", "e5", "nomic", "gte", "minilm", "similarity")
+            ):
+                task = TaskType.EMBEDDING
+
+            if task not in meta.supported_tasks:
+                continue
+
+            # Add original model name
+            add_model(model_name, model_name, task)
+
+            # Generate stripped alias by removing provider prefix if present (e.g. groq/qwen/qwen3-32b -> qwen/qwen3-32b)
+            if model_name.startswith(f"{meta.litellm_prefix}/"):
+                stripped = model_name[len(meta.litellm_prefix) + 1:]
+                add_model(stripped, model_name, task)
+
+            # Generate other aliases
+            parts = model_name.split("/")
+            if len(parts) > 1:
+                base = parts[-1]
+                add_model(base, model_name, task)
+                add_model(f"{meta.litellm_prefix}/{base}", model_name, task)
+            else:
+                # If there's no prefix in litellm model name, add prefix/name as an option
+                add_model(f"{meta.litellm_prefix}/{model_name}", model_name, task)
+
         return models
 
     def get_provider_status(self, provider_id: str) -> ProviderStatus:
@@ -317,9 +356,13 @@ class ModelRegistry:
             if cfg.extra_params:
                 kwargs.update(cfg.extra_params)
 
-        if "api_key" not in kwargs:
-            meta = get_provider(entry.provider_id)
-            if meta and not meta.requires_api_key:
+        meta = get_provider(entry.provider_id)
+        if meta:
+            if meta.id != "openai":
+                prefix = f"{meta.litellm_prefix}/"
+                if not entry.litellm_model.startswith(prefix):
+                    kwargs["model"] = f"{prefix}{entry.litellm_model}"
+            if "api_key" not in kwargs and not meta.requires_api_key:
                 kwargs["api_key"] = "not-needed"
 
         return kwargs

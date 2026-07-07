@@ -41,6 +41,7 @@ PROVIDERS: list[ProviderMeta] = [
         litellm_prefix="openai",
         supported_tasks=[TaskType.EMBEDDING, TaskType.LLM, TaskType.RERANKER],
         requires_api_key=True,
+        default_api_base="https://api.openai.com/v1",
         description="OpenAI API (GPT, embeddings)",
     ),
     ProviderMeta(
@@ -83,6 +84,7 @@ PROVIDERS: list[ProviderMeta] = [
         litellm_prefix="deepseek",
         supported_tasks=[TaskType.LLM],
         requires_api_key=True,
+        default_api_base="https://api.deepseek.com/v1",
         description="DeepSeek API",
     ),
     ProviderMeta(
@@ -91,6 +93,7 @@ PROVIDERS: list[ProviderMeta] = [
         litellm_prefix="groq",
         supported_tasks=[TaskType.LLM],
         requires_api_key=True,
+        default_api_base="https://api.groq.com/openai/v1",
         description="Groq Cloud (fast inference)",
     ),
     ProviderMeta(
@@ -99,6 +102,7 @@ PROVIDERS: list[ProviderMeta] = [
         litellm_prefix="together_ai",
         supported_tasks=[TaskType.EMBEDDING, TaskType.LLM],
         requires_api_key=True,
+        default_api_base="https://api.together.xyz/v1",
         description="Together AI platform",
     ),
     ProviderMeta(
@@ -107,6 +111,7 @@ PROVIDERS: list[ProviderMeta] = [
         litellm_prefix="fireworks_ai",
         supported_tasks=[TaskType.EMBEDDING, TaskType.LLM],
         requires_api_key=True,
+        default_api_base="https://api.fireworks.ai/inference/v1",
         description="Fireworks AI platform",
     ),
     ProviderMeta(
@@ -115,6 +120,7 @@ PROVIDERS: list[ProviderMeta] = [
         litellm_prefix="mistral",
         supported_tasks=[TaskType.EMBEDDING, TaskType.LLM],
         requires_api_key=True,
+        default_api_base="https://api.mistral.ai/v1",
         description="Mistral AI API",
     ),
     ProviderMeta(

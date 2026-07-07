@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     rabbitmq_vhost: str = "/"
     rabbitmq_queue: str = "ingestion"
     storage_queue: str = "storage"
+    langgraph_queue: str = "langgraph"
+
+    # LangGraph worker retry / backoff
+    langgraph_max_retries: int = 5
+    langgraph_retry_base_delay: float = 1.0   # seconds
+    langgraph_retry_max_delay: float = 60.0   # cap on backoff delay
 
     # Storage (batched upsert)
     storage_batch_size: int = 100
@@ -49,6 +55,10 @@ class Settings(BaseSettings):
     # Embedding
     embedding_model: str = "text-embedding-3-small"
     embedding_batch_size: int = 100
+
+    # Graph
+    graph_batching: bool = True
+    graph_batch_size: int = 20
 
     model_config = SettingsConfigDict(
         env_file=".env",

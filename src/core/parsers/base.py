@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 class ParsedDocument:
     content: str
     metadata: dict = field(default_factory=dict)
+    extracted_images: list[dict] = field(default_factory=list)
 
 
 class Parser(ABC):

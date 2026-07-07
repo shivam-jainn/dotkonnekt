@@ -154,3 +154,49 @@ async def get_job_status(job_id: str):
             updated_at=job.updated_at.isoformat(),
         )
 
+
+from sse_starlette.sse import EventSourceResponse
+import asyncio
+
+@router.get("/{job_id}/stream")
+async def stream_job_progress(job_id: str):
+    async def event_generator():
+        last_trace_count = 0
+        while True:
+            async with db.pool() as session:
+                job = await session.get(JobModel, job_id)
+                if not job:
+                    yield {"event": "error", "data": "Job not found"}
+                    break
+                    
+                traces = job.metadata_.get("traces", []) if job.metadata_ else []
+                if len(traces) > last_trace_count:
+                    for trace in traces[last_trace_count:]:
+                        if isinstance(trace, str):
+                            yield {"event": "progress", "data": trace}
+                        else:
+                            yield {"event": "progress", "data": json.dumps(trace)}
+                    last_trace_count = len(traces)
+                    
+                if job.status in ["completed", "failed"]:
+                    yield {"event": "complete", "data": job.status}
+                    break
+                    
+            await asyncio.sleep(1)
+            
+    return EventSourceResponse(event_generator())
+
+
+@router.get("/{job_id}/report")
+async def get_job_report(job_id: str):
+    async with db.pool() as session:
+        job = await session.get(JobModel, job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+            
+        return {
+            "job_id": job_id,
+            "status": job.status,
+            "report": job.metadata_.get("report", {}) if job.metadata_ else {}
+        }
+
